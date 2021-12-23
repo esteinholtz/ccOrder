@@ -1,0 +1,4 @@
+#!/bin/bash
+
+kill `ps -ef | grep ccOrderSystem | grep r4edi | awk '{print $2}'`
+kill `ps -ef | grep DirectoryWatcher | grep java | awk '{print $2}'`

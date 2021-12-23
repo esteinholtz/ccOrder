@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo .
+echo ----------------------------------------------------
+echo Welcome to the ccOrderSystem message generator.
+echo ----------------------------------------------------
+
+echo .
+echo ..
+echo ... starting background job for EDI acknowledgement creation
+echo ... and ccOrderSystem
+
+cd /opt/axway/demo/Project997
+./EDIAck.sh &
+
+. /opt/axway/b2bi/Integrator/profile
+export CORE_BITMAPS=/opt/axway/demo/ccOrderSystem/bitmaps/
+cd /opt/axway/demo/ccOrderSystem/bin
+r4edi -s 10021 ccOrderSystem.x4 

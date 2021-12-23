@@ -1,0 +1,14 @@
+#!/bin/bash
+
+. /opt/axway/b2bi/Integrator/profile
+
+cd /opt/axway/demo/ccOrderSystem/bin
+
+export CORE_BITMAPS=/opt/axway/demo/ccOrderSystem/bitmaps/
+
+echo .
+echo ----------------------------------------------------
+echo Welcome to the ccOrderSystem message generator.
+echo ----------------------------------------------------
+
+r4edi -s 10021 ccOrderSystem.x4 

@@ -1,0 +1,1 @@
+java -cp proj.jar:lib/sax2.jar:lib/edireader-4.1.jar: com.axway.training.b2bi.DirectoryWatcher
