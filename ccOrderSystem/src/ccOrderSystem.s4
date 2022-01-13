@@ -1,0 +1,1109 @@
+/* Message Builder source file
+ *	File: ccOrderSystem.s4
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:			Description:
+ *	----------	-------		-------			------------
+ *	07-04-2009	1.0.0		Mohib Miah      Inital version
+ *	22-02-2010	1.5			MoMi			Bug fix
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h"				once;
+include "sysinfo.s4h"			once;
+include "rwt.s4h"				once;
+
+/* Project includes */
+include "ccOrderSys.s4h"		once;
+include "ccDynamicConfig.s4m"	once;
+include "ccOrderSysEDI.s4m"		once;
+include "ccOrderSysRandom.s4m"	once;
+include "ccOrderSysInhouse.s4m" once;
+
+DECLARE $gDebug  = 0				INTEGER;
+
+# Declare golbal UI App vars
+DECLARE $Application				RECORD RWT.Object;
+DECLARE $MainPanel					RECORD RWT.Object;
+
+DECLARE $FileMenu					RECORD RWT.Object;
+DECLARE $EditMenu					RECORD RWT.Object;
+DECLARE $HelpMenu					RECORD RWT.Object;
+DECLARE $FileMenuNew				RECORD RWT.Object;
+DECLARE $FileMenuSave				RECORD RWT.Object;
+DECLARE $FileMenuExit				RECORD RWT.Object;
+DECLARE $EditMenuAddline			RECORD RWT.Object;
+DECLARE $EditMenuEditline			RECORD RWT.Object;
+DECLARE $EditMenuDeleteLine			RECORD RWT.Object;
+DECLARE $EditMenuGenerate			RECORD RWT.Object;
+DECLARE $EditMenuPreferences		RECORD RWT.Object;
+DECLARE $ViewMenu					RECORD RWT.Object;
+DECLARE $ViewMenuResponseWindow		RECORD RWT.Object;
+DECLARE $HelpMenuAbout				RECORD RWT.Object;
+
+DECLARE $OrderPanel					RECORD RWT.Object;
+DECLARE $ColumnListMenu				RECORD RWT.Object;
+DECLARE $ControlNumberTextField		RECORD RWT.Object;
+DECLARE $FunctionlGrpNumTextField	RECORD RWT.Object;
+DECLARE $TransactionNumTextField	RECORD RWT.Object;
+DECLARE $PoNumberTextField			RECORD RWT.Object;
+DECLARE $ColumnList					RECORD RWT.Object;
+DECLARE $GenerateButton				RECORD RWT.Object;
+DECLARE $SaveButton					RECORD RWT.Object;
+DECLARE $ExitButton					RECORD RWT.Object;
+DECLARE $NewButton					RECORD RWT.Object;
+DECLARE $AddLineButton				RECORD RWT.Object;
+DECLARE $PopUpMenuEdit				RECORD RWT.Object;
+DECLARE $PopUpMenuAdd				RECORD RWT.Object;
+DECLARE $PopUpMenuGenerate			RECORD RWT.Object;
+DECLARE $PopUpMenuDelete			RECORD RWT.Object;
+
+DECLARE $StatusPanel				RECORD RWT.Object;
+DECLARE $StatusPanelPicture			RECORD RWT.Object;
+DECLARE $StatusPanelLabel			RECORD RWT.Object;
+
+DECLARE $LineDialog					RECORD RWT.Object;
+DECLARE $LineDialogPanel			RECORD RWT.Object;
+DECLARE $CatelogNumberTextField		RECORD RWT.Object;
+DECLARE $DescriptionTextField		RECORD RWT.Object;
+DECLARE $QuantityTextField			RECORD RWT.Object;
+DECLARE $MeasureTextField			RECORD RWT.Object;
+DECLARE $PriceTextField				RECORD RWT.Object;
+DECLARE $LineDialogGenerateButton	RECORD RWT.Object;
+
+DECLARE $PreferencesWindow				RECORD RWT.Object;
+DECLARE $PreferencesWindowPanel			RECORD RWT.Object;
+DECLARE $PreferencesWindowTab			RECORD RWT.Object;
+DECLARE $ConfigurationTabItem			RECORD RWT.Object;
+DECLARE $ConfigurationTabItemPanel		RECORD RWT.Object;
+DECLARE $AddressesTabItem				RECORD RWT.Object;
+DECLARE $AddressesTabItemPanel			RECORD RWT.Object;
+DECLARE $OutputDirectory2TextField		RECORD RWT.Object;
+DECLARE $OutputDirectoryTextField		RECORD RWT.Object;
+DECLARE $AsnOutputDirTextField			RECORD RWT.Object;
+DECLARE $InvoiceOutputDirTextField		RECORD RWT.Object;
+DECLARE $PaymentOutputDirTextField		RECORD RWT.Object;
+DECLARE $OutputDirectoryBrowseButton	RECORD RWT.Object;
+DECLARE $AsnOutputDirBrowseButton		RECORD RWT.Object;
+DECLARE $InvoiceOutputDirBrowseButton	RECORD RWT.Object;
+DECLARE $PaymentOutputDirBrowseButton	RECORD RWT.Object;
+DECLARE $SleepTimeTextField				RECORD RWT.Object;
+DECLARE $SenderIDTextField				RECORD RWT.Object;
+DECLARE $SenderIDQualTextField			RECORD RWT.Object;
+DECLARE $ReceiverIDQualTextField		RECORD RWT.Object;
+DECLARE $ReceiverIdTextField			RECORD RWT.Object;
+DECLARE $UniqueIdPathTextField			RECORD RWT.Object;
+DECLARE $ToggleBox						RECORD RWT.Object;
+DECLARE $OutputTypeToggleBox			RECORD RWT.Object;
+DECLARE $DebugToggleButton				RECORD RWT.Object;
+DECLARE $CreateEdifactToggleButton		RECORD RWT.Object;
+DECLARE $Createx12ToggleButton			RECORD RWT.Object;
+DECLARE $CheckEdiToggleButton			RECORD RWT.Object;
+DECLARE $PopupResponseToggleButton		RECORD RWT.Object;
+DECLARE $PopupInvoiceWindowToggleButton	RECORD RWT.Object;
+DECLARE $EdifactAddTabItem				RECORD RWT.Object;
+DECLARE $EdifactAddTabItemPanel			RECORD RWT.Object;
+DECLARE $OutputTabItem					RECORD RWT.Object;
+DECLARE $OutputTabItemPanel				RECORD RWT.Object;
+
+DECLARE $EdifactSenderIdTextField				RECORD RWT.Object;
+DECLARE $EdifactSenderIdQualTextField			RECORD RWT.Object;
+DECLARE $EdifactSenderInternalTextField			RECORD RWT.Object;
+DECLARE $EdifactSenderInternalSubTextField		RECORD RWT.Object;
+DECLARE $EdifactReceiverIdTextField				RECORD RWT.Object;
+DECLARE $EdifactReceiverIdQualTextField			RECORD RWT.Object;
+DECLARE $EdifactReceiverInternalTextField		RECORD RWT.Object;
+DECLARE $EdifactReceiverInternalSubTextField	RECORD RWT.Object;
+													
+DECLARE $AbstractConfirmationDialog		RECORD RWT.Object;
+DECLARE $AbstractConfirmationPanel		RECORD RWT.Object;
+DECLARE $AbstractConfirmationYes		RECORD RWT.Object;
+DECLARE $AbstractConfirmationNo			RECORD RWT.Object;
+DECLARE $AbstractConfirmationCancel		RECORD RWT.Object;
+DECLARE $AbstractConfirmationLabel		RECORD RWT.Object;
+
+DECLARE $SaveConfirmationDialog			RECORD RWT.Object;
+DECLARE $SaveConfirmationPanel			RECORD RWT.Object;
+DECLARE $SaveConfirmationYes			RECORD RWT.Object;
+DECLARE $SaveConfirmationNo				RECORD RWT.Object;
+DECLARE $SaveConfirmationCancel			RECORD RWT.Object;
+
+DECLARE $ResponseDialogYes				RECORD RWT.Object;
+DECLARE $ResponseDialogNo				RECORD RWT.Object;
+DECLARE $ResponseDialogCancel			RECORD RWT.Object;
+DECLARE $ResponseDialog					RECORD RWT.Object;
+
+
+DECLARE $aboutWindow				RECORD RWT.Object;
+DECLARE $aboutWindowPanel			RECORD RWT.Object;
+DECLARE $PictureAboutWindow			RECORD RWT.Object;
+
+DECLARE $ResponseWindow				RECORD RWT.Object;
+DECLARE $ResponseWindowMainPanel	RECORD RWT.Object;
+DECLARE $ResponseTab				RECORD RWT.Object;
+DECLARE $ResponseWindowButtonsPanel	RECORD RWT.Object;
+
+DECLARE $AsnWindow					RECORD RWT.Object;
+DECLARE $AsnWindowMainPanel			RECORD RWT.Object;
+DECLARE $AsnPanel					RECORD RWT.Object;
+DECLARE $AsnControlNumberTF			RECORD RWT.Object;
+DECLARE $AsnFunctionalGrpNumTF		RECORD RWT.Object;
+DECLARE $AsnTransactionNumTF		RECORD RWT.Object;
+DECLARE $AsnPoNumberTF				RECORD RWT.Object;
+DECLARE $AsnFirstShipDateTF			RECORD RWT.Object;
+DECLARE $AsnLastShipDateTF			RECORD RWT.Object;
+DECLARE $AsnColumnListMenu			RECORD RWT.Object;
+DECLARE $AsnPopUpMenuEdit			RECORD RWT.Object;
+DECLARE $AsnPopUpMenuAdd			RECORD RWT.Object;
+DECLARE $AsnPopUpMenuDelete			RECORD RWT.Object;
+DECLARE $AsnColumnList				RECORD RWT.Object;
+
+DECLARE $InvoiceWindow				RECORD RWT.Object;
+DECLARE $InvoiceWindowMainPanel		RECORD RWT.Object;
+DECLARE $InvoicePanel               RECORD RWT.Object;
+DECLARE $InvoiceControlNumberTF   	RECORD RWT.Object;
+DECLARE $InvoiceFunctionalGrpNumTF	RECORD RWT.Object;
+DECLARE $InvoiceTransactionNumTF  	RECORD RWT.Object;
+DECLARE $InvoicePoNumberTF        	RECORD RWT.Object;
+DECLARE $InvoiceNumberTF			RECORD RWT.Object;
+DECLARE $InvoiceTotalTF				RECORD RWT.Object;
+DECLARE $InvoiceColumnListMenu    	RECORD RWT.Object;
+DECLARE $InvoicePopUpMenuEdit     	RECORD RWT.Object;
+DECLARE $InvoicePopUpMenuAdd      	RECORD RWT.Object;
+DECLARE $InvoicePopUpMenuDelete   	RECORD RWT.Object;
+DECLARE $InvoiceColumnList        	RECORD RWT.Object;
+
+DECLARE $ResponseWindowSaveButton	RECORD RWT.Object;
+DECLARE $ResponseWindowCloseButton RECORD RWT.Object;
+
+DECLARE $PaymentWindow				RECORD RWT.Object;
+DECLARE $PaymentWindowMainPanel		RECORD RWT.Object;
+DECLARE $PaymentPanel				RECORD RWT.Object;
+DECLARE $PaymentControlNumberTF   	RECORD RWT.Object;
+DECLARE $PaymentFunctionalGrpNumTF	RECORD RWT.Object;
+DECLARE $PaymentTransactionNumTF  	RECORD RWT.Object;
+DECLARE $PaymentPoNumberTF        	RECORD RWT.Object;
+DECLARE $PaymentNumberTF			RECORD RWT.Object;
+DECLARE $PaymentTotalTF				RECORD RWT.Object;
+
+DECLARE $ResponseLineDialog         RECORD RWT.Object;
+DECLARE $ResponseLineDialogPanel  	RECORD RWT.Object;
+DECLARE $ResponseLineDialogPicture	RECORD RWT.Object;
+DECLARE $ResponseCatelogNumberTF  	RECORD RWT.Object;
+DECLARE $ResponseDescriptionTF    	RECORD RWT.Object;
+DECLARE $ResponseQuantityTF       	RECORD RWT.Object;
+DECLARE $ResponseMeasureTF        	RECORD RWT.Object;
+DECLARE $ResponsePriceTF          	RECORD RWT.Object;
+DECLARE $ResponseTotalTF          	RECORD RWT.Object;
+
+DECLARE $gPreferencesBrowseButton	RECORD RWT.Object;
+DECLARE $gRootFolders[]				RECORD RWT.RootFolder;
+
+DECLARE $gOrderRec[]				RECORD Order;
+DECLARE $gPreferences				RECORD Preferences;
+DECLARE $gItems[]					STRING;
+DECLARE $gBitmapNames[]				STRING;
+DECLARE $gAction					STRING;
+DECLARE $gControlNumber				STRING;
+DECLARE $gFunctionlGrpNumber		STRING; 
+DECLARE $gTransactionNumber			STRING;  
+DECLARE $gPoNumber					STRING;
+DECLARE $gInvoiceTotal				FLOAT;
+DECLARE $gInvoiceNumber				STRING;
+DECLARE $gConfigRecord				RECORD DYNAMIC_CONFIG.Configuration;
+
+DECLARE $gPrev_ControlNumber     	STRING;
+DECLARE $gPrev_FunctionlGrpNumber	STRING;
+DECLARE $gPrev_TransactionNumber 	STRING;
+DECLARE $gPrev_PoNumber          	STRING;
+
+DECLARE $CoreRoot					STRING;
+DECLARE $CoreData					STRING;
+DECLARE $CoreLocal					STRING;
+
+
+# These module added here, because above variables are in scope for these modules.
+include "ccOrderSysUI.s4m"		once;
+include "ccResponseSysUI.s4m"	once;
+
+/* ----------------------------------------------------
+ * Main
+ * ----------------------------------------------------*/
+# Setup System Info
+ccOrderSysUI.SetSystemInfo;
+
+# Build the GUI app
+ccOrderSysUI.Construct;
+
+# Load preferences info from file (ccOrderSystem.ini)
+LoadPreferences;
+
+# Set the RWT GUI events
+ccOrderSysUI.EventConstruct;
+
+# Popup the main application window.
+ccOrderSysUI.DisplayApplication;
+
+
+#--- Main Event Handlers -----------------------------------------------------------------------------------------------------
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	ExitAppl
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT ExitAppl IN $Obj RECORD RWT.Object
+{
+	TraceDebug SOURCEPROCEDURE();
+	StatusMessage "Exiting Application..." TYPE "INFO";
+	RWT.Destroy $Application;
+	RWT.MainLoopExit;
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CloseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT CloseWindow IN $Obj RECORD RWT.Object
+{
+	RWT.Destroy RWT.GetParentWindow($Obj);
+	#RWT.PopDown RWT.GetParentWindow($Obj);
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SaveResponseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------
+DECLARE STATEMENT SaveResponseWindow IN $Obj RECORD RWT.Object
+{
+	RWT.PopUp $AbstractConfirmationDialog;
+	RETURN;
+}*/
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopDownDialog
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT PopDownDialog IN $Obj RECORD RWT.Object
+{
+	TraceDebug SOURCEPROCEDURE();
+	RWT.PopDown $Obj;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	AddLineButton_Selected
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT AddLineButtonSelected IN $Obj RECORD RWT.Object
+{
+	TraceDebug SOURCEPROCEDURE();
+	RWT.Popup $LineDialog;
+	$gAction = $ACTION_NEW;
+
+	RETURN;
+}
+
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	SaveFile
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SaveFile IN $Obj RECORD RWT.Object
+{
+	TraceDebug SOURCEPROCEDURE();
+
+	IF  $gControlNumber		 = $gPrev_ControlNumber    
+	AND $gFunctionlGrpNumber = $gPrev_FunctionlGrpNumber
+	AND $gTransactionNumber	 = $gPrev_TransactionNumber
+	AND $gPoNumber			 = $gPrev_PoNumber  
+	{
+		# Pop confirmation dialog.
+		RWT.PopUp $SaveConfirmationDialog;
+	}
+	ELSE
+	{
+		CreateOrderOutputFile $Obj;
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SaveConfirmationCancelEvent
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SaveConfirmationCancelEvent IN $Obj RECORD RWT.Object
+{
+	PopDownDialog $SaveConfirmationDialog;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SaveConfirmationNoEvent
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SaveConfirmationNoEvent IN $Obj RECORD RWT.Object
+{
+	PopDownDialog $SaveConfirmationDialog;
+	CreateOrderOutputFile $Obj;
+	
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SaveConfirmationYesEvent
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SaveConfirmationYesEvent IN $Obj RECORD RWT.Object
+{
+	PopDownDialog $SaveConfirmationDialog;
+	# Update Order message referance numbers.
+	UpdateReferenceNumbers;
+	CreateOrderOutputFile $Obj;
+	
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopUpResponseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT PopUpResponseWindow IN $Obj RECORD RWT.Object
+{
+	TRY
+	{
+	    RWT.PopUp		$ResponseWindow;
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG "Failed to Popup Response Window: Exception=" & $exception TYPE "ERROR";
+	}
+	
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateOrderOutputFile
+@SYNTAX
+@DESC	Main statement where file generation starts from.	
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT CreateOrderOutputFile IN $Obj RECORD RWT.Object
+{
+	#DECLARE $OrderInfo RECORD ccOrderSysEDI.OrderInfo;
+	DECLARE $OrderInfo RECORD OrderInfo;
+
+	TRY
+	{
+	    TraceDebug SOURCEPROCEDURE();
+
+		$OrderInfo.$ControlNumber		= $gControlNumber;
+		$OrderInfo.$FunctionlGrpNumber	= $gFunctionlGrpNumber;
+		$OrderInfo.$TransactionNumber	= $gTransactionNumber;
+		$OrderInfo.$PoNumber			= $gPoNumber;	
+		$OrderInfo.$Sender				= $gPreferences.$SenderId;
+		$OrderInfo.$Receiver			= $gPreferences.$ReceiverId;
+		$OrderInfo.$SenderQual			= $gPreferences.$SenderIdQual;
+		$OrderInfo.$ReceiverQual		= $gPreferences.$ReceiverIdQual;
+		$OrderInfo.$outputPath			= $gPreferences.$OutputDirectory;
+		$OrderInfo.$outputPath2			= $gPreferences.$OutputDirectory2;
+		$OrderInfo.$Details				= $gOrderRec;
+
+		IF $gPreferences.$CreateX12 = $TRUE 
+		{
+			ccOrderSysEDI.CreateOrder $OrderInfo SLEEPTIME $gPreferences.$SleepTime SYNTAX "X12" CONFIG $gPreferences;
+		}
+
+		IF $gPreferences.$CreateEdifact = $TRUE 
+		{
+			ccOrderSysEDI.CreateOrder $OrderInfo SLEEPTIME $gPreferences.$SleepTime SYNTAX "EDIFACT" CONFIG $gPreferences;
+		}
+
+		IF $gPreferences.$CreateX12 = $FALSE AND $gPreferences.$CreateEdifact = $FALSE 
+		{
+			StatusMessage "Output file syntax not set!" TYPE "ERROR";
+		}
+
+		# Set previous values
+		$gPrev_ControlNumber        = $gControlNumber;		 
+		$gPrev_FunctionlGrpNumber 	= $gFunctionlGrpNumber;
+		$gPrev_TransactionNumber  	= $gTransactionNumber;	 
+		$gPrev_PoNumber           	= $gPoNumber;		
+		
+
+		# PopUp Response window	
+		IF $gPreferences.$PopupResponseWindow		
+		{
+			# If Response window is open close it.
+			ccResponseSysUI.IfOpenCloseResponseWindow;
+
+			ccResponseSysUI.Construct;
+			ccResponseSysUI.EventConstruct;
+
+			ccResponseSysUI.SetOrderInfo $OrderInfo;
+
+			RWT.Sensitive	$ViewMenuResponseWindow;
+			RWT.PopUp		$ResponseWindow;	
+			
+			ccResponseSysUI.PopulateAsnWindow;
+			ccResponseSysUI.PopulateInvocieWindow;
+			ccResponseSysUI.PopulatePaymentWindow;
+
+			ccResponseSysUI.NotSaved;
+		}
+		ELSE
+		{
+			TraceDebug "ResponseWindow popup not required.";
+		}
+		
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	AddLineToColumnList
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT AddLineToColumnList IN $Obj RECORD RWT.Object
+{
+
+	DECLARE $str			STRING;
+	DECLARE $i				INTEGER;
+	DECLARE $index[]		INTEGER;
+
+	TraceDebug SOURCEPROCEDURE();
+
+	CASE $gAction
+	WHEN $ACTION_NEW
+	{
+		TraceDebug "New action selected";
+		$i = ARRAYSIZE($gOrderRec) + 1;
+		StatusMessage "New line " & $i & " added" TYPE "INFO";
+	}
+	WHEN $ACTION_EDIT
+	{
+		TraceDebug "Edit action selected";
+		$index = RWT.ColumnListGetSelected($ColumnList);
+		IF ARRAYSIZE($index) 
+		{
+			$i = $index[1];
+			StatusMessage "Line " & $i & " modified" TYPE "INFO";
+		}
+	}
+	WHEN OTHERS
+	{
+		LOG "Unknown action!" TYPE "ERROR";
+	}
+
+	$str = GetLineDialogData($i);
+	
+	$gOrderRec[$i].$CatelogNumber = RWT.GetText($CatelogNumberTextField);
+	$gOrderRec[$i].$Description	  = RWT.GetText($DescriptionTextField);
+	$gOrderRec[$i].$Quantity	  = RWT.GetText($QuantityTextField);	
+	$gOrderRec[$i].$Measure		  = RWT.GetText($MeasureTextField);
+	$gOrderRec[$i].$Price		  = RWT.GetText($PriceTextField);	
+
+
+	$gItems[$i] = $str;
+	$gBitmapNames[$i] = "shopping2_w16";
+
+	RWT.ColumnListClear $ColumnList;
+	RWT.ColumnListInsert $ColumnList ITEMS $gItems BITMAPNAMES $gBitmapNames;
+
+	PopDownDialog $LineDialog;
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	DeleteLineSelectedLine
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT DeleteLineSelectedLine IN $Obj RECORD RWT.Object
+{
+	DECLARE $index[]		INTEGER;
+	DECLARE $items[]		STRING;
+	DECLARE $orderRec[]		RECORD Order;
+	DECLARE $bitmaps[]		STRING;
+	DECLARE $j				INTEGER;
+
+	TraceDebug SOURCEPROCEDURE();
+
+	$index = RWT.ColumnListGetSelected($ColumnList);
+
+	IF ARRAYSIZE($index) 
+	{
+		TraceDebug "selected index(" & $index[1] & ")";
+
+		FOR $i = 1 TO ARRAYSIZE($gOrderRec) 
+		{
+			IF $i <> $index[1] 
+			{
+				$j = $j + 1;
+				$orderRec[$j]	= $gOrderRec[$i];
+				$items[$j]		= "Line " & $j & MID($gItems[$i], strforward($gItems[$i], "\t"), strlen($gItems[$i]));
+				$bitmaps[$j]	= $gBitmapNames[$i];
+			}
+		}
+		
+		$gOrderRec		= $orderRec;
+		$gItems			= $items;
+		$gBitmapNames	= $bitmaps;
+
+		RWT.ColumnListClear $ColumnList;
+		RWT.ColumnListInsert $ColumnList ITEMS $gItems BITMAPNAMES $gBitmapNames;
+	}
+
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	ColumnListDoubleSelectEvent
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT ColumnListDoubleSelectEvent IN $Obj RECORD RWT.Object
+{
+	DECLARE $index[]	INTEGER;
+
+	TraceDebug SOURCEPROCEDURE();
+
+	$index = RWT.ColumnListGetSelected($ColumnList);
+
+	IF ARRAYSIZE($index) 
+	{
+		TraceDebug "selected index(" & $index[1] & ")";
+		$gAction = $ACTION_EDIT;
+
+		RWT.SetText $CatelogNumberTextField VALUE $gOrderRec[$index[1]].$CatelogNumber;
+		RWT.SetText $DescriptionTextField	VALUE $gOrderRec[$index[1]].$Description; 
+		RWT.SetText $QuantityTextField		VALUE $gOrderRec[$index[1]].$Quantity; 	 
+		RWT.SetText $MeasureTextField		VALUE $gOrderRec[$index[1]].$Measure;      
+		RWT.SetText $PriceTextField			VALUE $gOrderRec[$index[1]].$Price;
+
+		RWT.PopUp $LineDialog;
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	NewCreateOrder
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT NewCreateOrder IN $Obj RECORD RWT.Object
+{
+	TRY
+	{
+		TraceDebug SOURCEPROCEDURE();
+
+		RWT.SetText $ControlNumberTextField	VALUE "";
+		RWT.SetText $PoNumberTextField		VALUE "";
+		RWT.SetText $CatelogNumberTextField VALUE "";	
+		RWT.SetText $CatelogNumberTextField VALUE "";
+		RWT.SetText $DescriptionTextField	VALUE ""; 
+		RWT.SetText $QuantityTextField		VALUE ""; 	 
+		RWT.SetText $MeasureTextField		VALUE "";      
+		RWT.SetText $PriceTextField			VALUE "";	
+
+		RWT.ColumnListClear $ColumnList;
+
+		$gOrderRec		= $gEmptyOrderRec;
+		$gItems			= $gEmptyStringArray;
+		$gBitmapNames	= $gEmptyStringArray;
+
+		# Update Order message referance numbers.
+		UpdateReferenceNumbers;
+		
+		# clear action??
+		$gAction = "";
+		
+		StatusMessage "Enter new order" TYPE "INFO";
+
+		RWT.Sensitive $GenerateButton;
+		RWT.Sensitive $AddLineButton;	
+		RWT.Sensitive $SaveButton;
+		RWT.Sensitive $FileMenuSave;
+		RWT.Sensitive $EditMenuAddLine;    
+		RWT.Sensitive $EditMenuEditLine;   
+		RWT.Sensitive $EditMenuDeleteLine;                     
+		RWT.Sensitive $EditMenuGenerate;
+		RWT.Sensitive $PopUpMenuEdit;    
+		RWT.Sensitive $PopUpMenuAdd;        
+		RWT.Sensitive $PopUpMenuGenerate;
+		RWT.Sensitive $PopUpMenuDelete;  
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEPROCEDURE() & " Failed to create new order: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+
+	RETURN;
+}
+
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	GenerateOrderOnScreen
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT GenerateOrderOnScreen IN $Obj RECORD RWT.Object
+{
+	DECLARE $str	STRING;
+	
+	$gOrderRec		= $gEmptyOrderRec;
+	$gItems			= $gEmptyStringArray;
+	$gBitmapNames	= $gEmptyStringArray;
+
+	# Generate random order lines.
+	$gOrderRec = ccOrderSysRandom.GetOrderLines();
+
+	FOR $i = 1 TO ARRAYSIZE($gOrderRec) 
+	{
+		$gItems[$i] = "Line " & $i	& "\t" &
+					$gOrderRec[$i].$CatelogNumber & "\t" &
+					$gOrderRec[$i].$Description & "\t" &
+					$gOrderRec[$i].$Quantity & "\t" &
+					$gOrderRec[$i].$Measure & "\t" &
+					$gOrderRec[$i].$Price ;
+					
+		$gBitmapNames[$i] = "shopping2_w16";
+	}
+
+	RWT.ColumnListClear $ColumnList;
+	RWT.ColumnListInsert $ColumnList ITEMS $gItems BITMAPNAMES $gBitmapNames;
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	GenerateOrderOnLineDialog
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT GenerateOrderOnLineDialog IN $Obj RECORD RWT.Object
+{
+	DECLARE $ordRec[]	RECORD Order;
+	DECLARE $Random		INTEGER;
+
+	$ordRec = ccOrderSysRandom.GetOrderLines();
+	$Random = ccOrderSysRandom.Random();
+
+	WHILE $Random > ARRAYSIZE($ordRec)
+	{
+		$Random = ccOrderSysRandom.Random();
+	}
+	
+	IF $Random = 0 { $Random = 1;}
+
+	TraceDebug "Got ramdon line at index(" & $Random & ")";
+
+	RWT.SetText $CatelogNumberTextField VALUE $ordRec[$Random].$CatelogNumber;
+	RWT.SetText $DescriptionTextField	VALUE $ordRec[$Random].$Description;
+	RWT.SetText $QuantityTextField		VALUE $ordRec[$Random].$Quantity;
+	RWT.SetText $MeasureTextField		VALUE $ordRec[$Random].$Measure; 
+	RWT.SetText $PriceTextField			VALUE $ordRec[$Random].$Price;  
+	
+	      
+	
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopUpPreferencesWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT PopUpPreferencesWindow IN $Obj RECORD RWT.Object
+{	
+	TraceDebug SOURCEPROCEDURE();
+
+	RWT.PopUp $PreferencesWindow;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopUpAboutWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT PopUpAboutWindow IN $Obj RECORD RWT.Object
+{	
+	TraceDebug SOURCEPROCEDURE();
+
+	RWT.PopUp $aboutWindow;
+	RETURN;
+}
+/*---------------------------------------------------------------------------------------
+@NAME	SavePreferences
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SavePreferences IN $Obj RECORD RWT.Object
+{
+	DECLARE $str	STRING;
+
+	TRY
+	{
+		TraceDebug SOURCEPROCEDURE();
+
+		$gPreferences.$SenderIdQual				= RWT.GetText($SenderIdQualTextField);
+	    $gPreferences.$SenderId					= RWT.GetText($SenderIdTextField);
+		$gPreferences.$ReceiverIdQual			= RWT.GetText($ReceiverIdQualTextField);
+		$gPreferences.$ReceiverId				= RWT.GetText($ReceiverIdTextField);
+		$gPreferences.$OutputDirectory			= RWT.GetText($OutputDirectoryTextField);
+		#$gPreferences.$OutputDirectory2			= RWT.GetText($OutputDirectory2TextField); # Not Used
+		$gPreferences.$AsnOutputDirectory		= RWT.GetText($AsnOutputDirTextField);
+		$gPreferences.$InvoiceOutputDirectory	= RWT.GetText($InvoiceOutputDirTextField);
+		$gPreferences.$PaymentOutputDirectory	= RWT.GetText($PaymentOutputDirTextField);
+		#$gPreferences.$SleepTime				= RWT.GetText($SleepTimeTextField); # Not Used
+		$gPreferences.$UniqueIdPath				= RWT.GetText($UniqueIdPathTextField);
+		$gPreferences.$Debug					= MID(RWT.ToggleBoxGet($ToggleBox), 1, 1);
+		$gPreferences.$CheckEDI					= MID(RWT.ToggleBoxGet($ToggleBox), 2, 2);
+		$gPreferences.$PopupResponseWindow		= MID(RWT.ToggleBoxGet($ToggleBox), 3, 3);
+
+		$gPreferences.$CreateX12				= MID(RWT.ToggleBoxGet($OutputTypeToggleBox), 1, 1);
+		$gPreferences.$CreateEdifact			= MID(RWT.ToggleBoxGet($OutputTypeToggleBox), 2, 2);
+	
+		$gPreferences.$Edifact.$SenderId				= RWT.GetText($EdifactSenderIdTextField);				
+		$gPreferences.$Edifact.$SenderQual				= RWT.GetText($EdifactSenderIdQualTextField);		
+		$gPreferences.$Edifact.$SenderInternalId		= RWT.GetText($EdifactSenderInternalTextField);			
+		$gPreferences.$Edifact.$SenderInternalSubId		= RWT.GetText($EdifactSenderInternalSubTextField);	
+		$gPreferences.$Edifact.$ReceiverId				= RWT.GetText($EdifactReceiverIdTextField);			
+		$gPreferences.$Edifact.$ReceiverQual			= RWT.GetText($EdifactReceiverIdQualTextField);			
+		$gPreferences.$Edifact.$ReceiverInternalId		= RWT.GetText($EdifactReceiverInternalTextField);	
+		$gPreferences.$Edifact.$ReceiverInternalSubId	= RWT.GetText($EdifactReceiverInternalSubTextField);
+
+		$gDebug = $gPreferences.$Debug;
+
+		SERIALIZE $gPreferences INTO $str;
+
+		OPEN FILE OUTPUT "ccOrderSystem.ini";
+		PRINT $str;
+		CLOSE OUTPUT;
+
+		RWT.PopDown $PreferencesWindow;
+
+		StatusMessage "Preferences saved" TYPE "INFO";
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	OutputDirectoryBrowse
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT OutputDirectoryBrowse IN $Obj RECORD RWT.Object
+{
+	TRY
+	{
+		$gPreferencesBrowseButton = $Obj;
+		TraceDebug "$gPreferencesBrowseButton=" & RWT.toString($gPreferencesBrowseButton);
+
+		RWT.ServerGetDirectoryName $PreferencesWindow
+		   TITLE "Select output directory..."                    
+		   #INITIALDIRECTORY  initialDirectory = ""                    
+		   ROOTFOLDERS       $gRootFolders
+		   HANDLER           SIDENT(ReturnOutputDirName);   	    
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		TraceDebug "Failed to open directory!";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+ * ReturnDirName
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT ReturnOutputDirName IN $DirName PRIMITIVE
+{
+	DECLARE $folder STRING;
+	IF $DirName <> "" 
+	{
+		$folder = SL_ENVIRON.ExpandEnvironmentVariables($DirName);
+
+		IF RWT.IsEqual($gPreferencesBrowseButton, $OutputDirectoryBrowseButton)
+		{
+			RWT.setText $OutputDirectoryTextField Value $folder;
+		}
+		ELSE IF RWT.IsEqual($gPreferencesBrowseButton, $AsnOutputDirBrowseButton)
+		{
+			RWT.setText $AsnOutputDirTextField Value $folder;
+		}
+		ELSE IF RWT.IsEqual($gPreferencesBrowseButton, $InvoiceOutputDirBrowseButton)
+		{
+			RWT.setText $InvoiceOutputDirTextField Value $folder;
+		}
+		ELSE IF RWT.IsEqual($gPreferencesBrowseButton, $PaymentOutputDirBrowseButton)
+		{
+			RWT.setText $PaymentOutputDirTextField Value $folder;
+		}
+		ELSE 
+		{
+			TraceDebug "Unknown Browse object button!";
+		}
+	}
+	RETURN;
+}
+
+
+# Utility Methods -------------------------------------------------------------------------------------------------------------
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	UpdateReferenceNumbers
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT UpdateReferenceNumbers
+{
+	TRY
+	{
+		TraceDebug SOURCEPROCEDURE();
+
+	    DYNAMIC_CONFIG.SetUniqueIdPath RWT.GetText($UniqueIdPathTextField);
+
+		$gControlNumber			= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_IntConNum);
+		$gFunctionlGrpNumber	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_GrpConNum);
+		$gTransactionNumber		= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_DocConNum);
+		$gPoNumber				= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_PoNumber);
+
+		RWT.SetText $ControlNumberTextField		VALUE $gControlNumber;
+		RWT.SetText $FunctionlGrpNumTextField	VALUE $gFunctionlGrpNumber;
+		RWT.SetText $TransactionNumTextField	VALUE $gTransactionNumber;
+		RWT.SetText $PoNumberTextField			VALUE $gPoNumber;
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	LoadPreferences
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT LoadPreferences
+{
+	DECLARE $str	STRING;
+
+	TRY
+	{
+		TraceDebug SOURCEPROCEDURE();
+
+		OPEN FILE INPUT "ccOrderSystem.ini";
+		READ $str;
+		CLOSE INPUT;
+	    
+		UNSERIALIZE $str INTO $gPreferences;
+		
+		RWT.SetText $SenderIdQualTextField		VALUE $gPreferences.$SenderIdQual;
+		RWT.SetText $SenderIdTextField			VALUE $gPreferences.$SenderId;
+		RWT.SetText $ReceiverIdQualTextField	VALUE $gPreferences.$ReceiverIdQual;
+		RWT.SetText $ReceiverIdTextField		VALUE $gPreferences.$ReceiverId;	
+		RWT.SetText $OutputDirectoryTextField	VALUE $gPreferences.$OutputDirectory;
+		#RWT.SetText $OutputDirectory2TextField	VALUE $gPreferences.$OutputDirectory2;
+		RWT.SetText $AsnOutputDirTextField		VALUE $gPreferences.$AsnOutputDirectory;	
+		RWT.SetText $InvoiceOutputDirTextField	VALUE $gPreferences.$InvoiceOutputDirectory;
+		RWT.SetText $PaymentOutputDirTextField	VALUE $gPreferences.$PaymentOutputDirectory;
+		#RWT.SetText $SleepTimeTextField			VALUE $gPreferences.$SleepTime;
+		RWT.SetText $UniqueIdPathTextField		VALUE $gPreferences.$UniqueIdPath;
+		RWT.ToggleBoxSet $ToggleBox				VALUE $gPreferences.$Debug & $gPreferences.$CheckEDI 
+														& $gPreferences.$PopupResponseWindow;
+													
+		RWT.ToggleBoxSet $OutputTypeToggleBox	VALUE $gPreferences.$CreateX12 & $gPreferences.$CreateEdifact;
+
+																				  
+		RWT.SetText $EdifactSenderIdTextField				VALUE $gPreferences.$Edifact.$SenderId;							
+		RWT.SetText $EdifactSenderIdQualTextField			VALUE $gPreferences.$Edifact.$SenderQual;					 
+		RWT.SetText $EdifactSenderInternalTextField			VALUE $gPreferences.$Edifact.$SenderInternalId;			
+		RWT.SetText $EdifactSenderInternalSubTextField		VALUE $gPreferences.$Edifact.$SenderInternalSubId;		
+		RWT.SetText $EdifactReceiverIdTextField				VALUE $gPreferences.$Edifact.$ReceiverId;					 
+		RWT.SetText $EdifactReceiverIdQualTextField			VALUE $gPreferences.$Edifact.$ReceiverQual;				
+		RWT.SetText $EdifactReceiverInternalTextField		VALUE $gPreferences.$Edifact.$ReceiverInternalId;		 
+		RWT.SetText $EdifactReceiverInternalSubTextField	VALUE $gPreferences.$Edifact.$ReceiverInternalSubId; 
+
+		$gDebug = $gPreferences.$Debug;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEPROCEDURE() & " Failed to load preferences: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	StatusMessage
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT StatusMessage IN $txt PRIMITIVE TYPE IN $type PRIMITIVE
+{
+	CASE SL_STRING.toupper($type)
+	WHEN "INFO"
+	{
+		RWT.SetPicture $StatusPanelPicture BITMAPNAME "event_info_g16";
+	}
+	WHEN "ERROR"
+	{
+		RWT.SetPicture $StatusPanelPicture BITMAPNAME "event_error_g16";
+	}
+	WHEN "WARNING"
+	{
+		RWT.SetPicture $StatusPanelPicture BITMAPNAME "event_warning_g16";
+	}
+	WHEN "FATAL"
+	{
+		RWT.SetPicture $StatusPanelPicture BITMAPNAME "event_fatal_g16";
+	}
+	WHEN "DEBUG"
+	{
+		RWT.SetPicture $StatusPanelPicture BITMAPNAME "event_debug_g16";
+	}
+	WHEN OTHERS
+	{
+		RWT.SetPicture $StatusPanelPicture BITMAPNAME "none";
+	}
+
+	RWT.SetText $StatusPanelLabel VALUE $txt;
+	LOG $txt TYPE $type;
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	GetLineDialogData
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE FUNCTION GetLineDialogData($index)
+{
+	DECLARE $str			STRING;
+
+	$str =  "Line " & $index & "\t" &
+			RWT.GetText($CatelogNumberTextField) & "\t" &
+			RWT.GetText($DescriptionTextField) & "\t" &
+			RWT.GetText($QuantityTextField) & "\t" &
+			RWT.GetText($MeasureTextField) & "\t" &
+			RWT.GetText($PriceTextField) ;
+
+	TraceDebug "str(" & $str & ")";
+	
+	RETURN $str;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	Mid
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Mid($str,$n,$m)
+{
+    declare $i integer;
+    declare $num integer;
+    declare $ntmp integer;
+    declare $mtmp integer;
+    declare $retstr string;
+    
+    $retstr = "";
+    $num = STRLEN($str);
+    $ntmp = $n;
+    $mtmp = $m;
+    
+    if $ntmp<1 {$ntmp=1;}
+    if $mtmp>$num {$mtmp=$num;}
+    if $ntmp>$mtmp {return $retstr;}
+
+    $retstr = STRMID($str,$ntmp,$mtmp);
+
+    return $retstr;
+} 
+
+/*---------------------------------------------------------------------------------------
+@NAME	TraceDebug
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT TraceDebug IN $str
+{
+	IF $gDebug 
+	{
+		LOG $str TYPE "DEBUG";
+	}
+	RETURN;
+}

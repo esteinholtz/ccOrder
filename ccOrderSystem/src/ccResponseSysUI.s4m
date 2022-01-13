@@ -1,0 +1,1076 @@
+/* Message Builder source file
+ *	File: ccResponseSysUI.s4
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:			Description:
+ *	----------	-------		-------			------------
+ *	15-05-2009	1.0.0		Mohib Miah      Inital version
+ *
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h" once;
+include "sysinfo.s4h" once;
+
+
+DECLARE MODULE ccResponseSysUI  {
+
+DECLARE $mDebug		 = 0			INTEGER;
+DECLARE $mInvoiceTab = "INV_TAB"	CONSTANT STRING;
+DECLARE $mAsnTab	 = "ASN_TAB"	CONSTANT STRING;
+
+DECLARE $mInvoice			RECORD INVOICE;
+DECLARE $mAsn				RECORD ASN;
+DECLARE $mPayment			RECORD PAYMENT;
+DECLARE $mOrderInfo			RECORD OrderInfo;
+DECLARE $mCurrentTab		STRING;
+DECLARE $mSaveFlag = $FALSE	INTEGER;
+
+/*--------------------------------------------------------------------
+ * Version
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Version() 
+{
+	RETURN SOURCEMODULE() & " Version 1.0.0";
+}
+
+/*--------------------------------------------------------------------
+ * MODULE_INIT
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_INIT 
+{
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	Construct
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT Construct
+{
+	TRY
+	{	
+		RWT.Application "Response" ICONNAME "File Server Asia" TITLE "CC Response Files" 
+			OBJECT $ResponseWindow; 
+
+		RWT.Panel $ResponseWindow MARGINWIDTH 10 MARGINHEIGHT 10 LAYOUT RWT.$Vertical OBJECT $ResponseWindowMainPanel;
+		
+		RWT.Tab $ResponseWindowMainPanel OBJECT $ResponseTab;
+		RWT.Panel $ResponseWindowMainPanel LAYOUT RWT.$horizontal OBJECT $ResponseWindowButtonsPanel;
+		
+
+		# ASN Tab -----------------------------------------------------------------------------------------------
+
+		RWT.TabItem $ResponseTab TITLE "Shipping Notification" OBJECT $AsnWindow;
+
+		RWT.Panel $AsnWindow FRAME RWT.$false MARGINWIDTH 10 MARGINHEIGHT 10          
+		      LAYOUT RWT.$vertical HALIGN RWT.$true OBJECT $AsnWindowMainPanel;
+
+		RWT.Picture $AsnWindowMainPanel BITMAPNAME "cc_asn_banner_black";      
+
+		RWT.Panel $AsnWindowMainPanel FRAME RWT.$true TITLE "ASN Information" 
+			MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $AsnPanel;
+		
+		RWT.Label $AsnPanel TEXT "Control Number" VDISTANCE 5;
+		RWT.TextField $AsnPanel HDISTANCE 100 COLUMNS 20 OBJECT $AsnControlNumberTF;
+
+		RWT.Label $AsnPanel TEXT "Functionl Group Number" VDISTANCE 5 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $AsnPanel HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $AsnFunctionalGrpNumTF;
+
+		RWT.Label $AsnPanel TEXT "Transaction Number" VDISTANCE 35;
+		RWT.TextField $AsnPanel VDISTANCE 30 HDISTANCE 100 COLUMNS 20 OBJECT $AsnTransactionNumTF;
+
+		RWT.Label $AsnPanel TEXT "Purchase Order Number" VDISTANCE 35 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $AsnPanel VDISTANCE 30 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $AsnPoNumberTF;
+
+		RWT.Label $AsnPanel TEXT "First Shipping Date" VDISTANCE 65;
+		RWT.TextField $AsnPanel VDISTANCE 60 HDISTANCE 100 COLUMNS 20 OBJECT $AsnFirstShipDateTF;
+
+		RWT.Label $AsnPanel TEXT "Last Shipping Date" VDISTANCE 65 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $AsnPanel VDISTANCE 60 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $AsnLastShipDateTF;
+
+		# Popup menu for ColumnList
+		RWT.PopupMenu "Menu" OBJECT $AsnColumnListMenu;
+		RWT.MenuButton $AsnColumnListMenu TEXT	"Edit" ACCELERATORTEXT "Ctrl+E" OBJECT $AsnPopUpMenuEdit;
+		#RWT.MenuButton $AsnColumnListMenu TEXT	"Add" ACCELERATORTEXT "Ctrl+L" OBJECT $AsnPopUpMenuAdd;
+		RWT.MenuSeparator $AsnColumnListMenu;
+		#RWT.MenuButton $ColumnListMenu TEXT	"Generate" ACCELERATORTEXT "Ctrl+G" OBJECT $AsnPopUpMenuGenerate;
+		#RWT.MenuSeparator $ColumnListMenu;
+		RWT.MenuButton $AsnColumnListMenu TEXT	"Delete" ACCELERATORTEXT "Ctrl+D"  OBJECT $AsnPopUpMenuDelete;
+
+		RWT.ColumnList $AsnPanel WIDTH 500 HEIGHT 200 COLUMNS 6 VDISTANCE 90               
+			HEADERTEXT "Line\tCatalog Number\tDescription\tQty\tMeasure\tPrice"                
+			POPUPMENU $AsnColumnListMenu OBJECT $AsnColumnList;
+		
+		#RWT.Button $AsnPanel TEXT "Save"  WIDTH 70 VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 300 HDISTANCE 390 
+		#	OBJECT $AsnSaveButton;
+		#RWT.Button $AsnPanel TEXT "Cancel" WIDTH 70 VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 300 HDISTANCE 470 
+		#	OBJECT $AsnCancelButton;
+		    
+		
+		# Invocie Tab ----------------------------------------------------------------------------------------------------------
+		RWT.TabItem $ResponseTab TITLE "Invoice File" OBJECT $InvoiceWindow;
+
+		RWT.Panel $InvoiceWindow FRAME RWT.$false MARGINWIDTH 10 MARGINHEIGHT 10          
+		      LAYOUT RWT.$vertical OBJECT $InvoiceWindowMainPanel HALIGN RWT.$true;
+
+		RWT.Picture $InvoiceWindowMainPanel BITMAPNAME "cc_invoice_banner_blue";      
+
+		RWT.Panel $InvoiceWindowMainPanel FRAME RWT.$true TITLE "Invoice information" 
+			MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $InvoicePanel;
+		
+		RWT.Label $InvoicePanel TEXT "Control Number" VDISTANCE 5;
+		RWT.TextField $InvoicePanel HDISTANCE 100 COLUMNS 20 OBJECT $InvoiceControlNumberTF;
+
+		RWT.Label $InvoicePanel TEXT "Functionl Group Number" VDISTANCE 5 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $InvoicePanel HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $InvoiceFunctionalGrpNumTF;
+
+		RWT.Label $InvoicePanel TEXT "Transaction Number" VDISTANCE 35;
+		RWT.TextField $InvoicePanel VDISTANCE 30 HDISTANCE 100 COLUMNS 20 OBJECT $InvoiceTransactionNumTF;
+
+		RWT.Label $InvoicePanel TEXT "Purchase Order Number" VDISTANCE 35 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $InvoicePanel VDISTANCE 30 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $InvoicePoNumberTF;
+
+		RWT.Label $InvoicePanel TEXT "Invoice Number" VDISTANCE 65;
+		RWT.TextField $InvoicePanel VDISTANCE 60 HDISTANCE 100 COLUMNS 20 OBJECT $InvoiceNumberTF;
+
+		RWT.Label $InvoicePanel TEXT "Invoice Total" VDISTANCE 65 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $InvoicePanel VDISTANCE 60 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $InvoiceTotalTF;
+
+		# Popup menu for ColumnList
+		RWT.PopupMenu "Menu" OBJECT $InvoiceColumnListMenu;
+		RWT.MenuButton $InvoiceColumnListMenu TEXT	"Edit" ACCELERATORTEXT "Ctrl+E" OBJECT $InvoicePopUpMenuEdit;
+		#RWT.MenuButton $InvoiceColumnListMenu TEXT	"Add" ACCELERATORTEXT "Ctrl+L" OBJECT $InvoicePopUpMenuAdd;
+		RWT.MenuSeparator $InvoiceColumnListMenu;
+		#RWT.MenuButton $ColumnListMenu TEXT	"Generate" ACCELERATORTEXT "Ctrl+G" OBJECT $InvoicePopUpMenuGenerate;
+		#RWT.MenuSeparator $ColumnListMenu;
+		RWT.MenuButton $InvoiceColumnListMenu TEXT	"Delete" ACCELERATORTEXT "Ctrl+D"  OBJECT $InvoicePopUpMenuDelete;
+
+		RWT.ColumnList $InvoicePanel WIDTH 500 HEIGHT 200 COLUMNS 6 VDISTANCE 90               
+			HEADERTEXT "Line\tCatalog Number\tDescription\tQty\tPrice\tTotal"                
+			POPUPMENU $InvoiceColumnListMenu OBJECT $InvoiceColumnList;
+		
+		
+		#Payment tab ---------------------------------------------------------------------------------------------------------
+		
+		RWT.TabItem $ResponseTab TITLE "Payment File" OBJECT $PaymentWindow;
+
+		RWT.Panel $PaymentWindow FRAME RWT.$false MARGINWIDTH 10 MARGINHEIGHT 10          
+		      LAYOUT RWT.$vertical HALIGN RWT.$true OBJECT $PaymentWindowMainPanel ;
+
+		RWT.Picture $PaymentWindowMainPanel BITMAPNAME "cc_payment_banner_green";      
+
+		RWT.Panel $PaymentWindowMainPanel FRAME RWT.$true TITLE "Invoice information" 
+			MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $PaymentPanel;
+		
+		RWT.Label $PaymentPanel TEXT "Control Number" VDISTANCE 5;
+		RWT.TextField $PaymentPanel HDISTANCE 100 COLUMNS 20 OBJECT $PaymentControlNumberTF;
+
+		RWT.Label $PaymentPanel TEXT "Functionl Group Number" VDISTANCE 5 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $PaymentPanel HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $PaymentFunctionalGrpNumTF;
+
+		RWT.Label $PaymentPanel TEXT "Transaction Number" VDISTANCE 35;
+		RWT.TextField $PaymentPanel VDISTANCE 30 HDISTANCE 100 COLUMNS 20 OBJECT $PaymentTransactionNumTF;
+
+		RWT.Label $PaymentPanel TEXT "Purchase Order Number" VDISTANCE 35 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $PaymentPanel VDISTANCE 30 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $PaymentPoNumberTF;
+
+		RWT.Label $PaymentPanel TEXT "Payment Number" VDISTANCE 65;
+		RWT.TextField $PaymentPanel VDISTANCE 60 HDISTANCE 100 COLUMNS 20 OBJECT $PaymentNumberTF;
+
+		RWT.Label $PaymentPanel TEXT "Payment Total" VDISTANCE 65 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $PaymentPanel VDISTANCE 60 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $PaymentTotalTF;
+
+
+		# Buttons ------------------------------------------------------------------------------------------------------------
+		RWT.Button $ResponseWindowButtonsPanel TEXT "Save"  WIDTH 70 VANCHOR RWT.$false HANCHOR RWT.$false HDISTANCE 485 
+			OBJECT $ResponseWindowSaveButton;
+		RWT.Button $ResponseWindowButtonsPanel TEXT "Close" WIDTH 70 VANCHOR RWT.$false HANCHOR RWT.$false #HDISTANCE 470 
+			OBJECT $ResponseWindowCloseButton;
+
+		# Dialog -------------------------------------------------------------------------------------------------------------
+		
+		AbstractDialog $ResponseWindow
+				TEXT	"Save changes?"
+				YES		$ResponseDialogYes
+				NO		$ResponseDialogNo
+				CANCEL	$ResponseDialogCancel
+				OBJECT	$ResponseDialog;
+
+		#----- Edit Line dialog --------------------------------------------------------------------------------------------------------
+		RWT.Dialog $ResponseWindow TITLE "Line information" BUTTONS RWT.$ok + RWT.$cancel OBJECT $ResponseLineDialog;
+		
+		RWT.Panel $ResponseLineDialog FRAME RWT.$true TITLE "Edit line details" MARGINWIDTH 10  MARGINHEIGHT 10 
+			OBJECT $ResponseLineDialogPanel;
+
+		RWT.Picture $ResponseLineDialogPanel BITMAPNAME  "SynchronyGearsBlue" OBJECT $ResponseLineDialogPicture;    
+		
+		RWT.Label $ResponseLineDialogPanel TEXT "Catalog Number" VDISTANCE 5 HDISTANCE 120; 
+		RWT.TextField $ResponseLineDialogPanel HDISTANCE 220 COLUMNS 30 OBJECT $ResponseCatelogNumberTF;
+
+		RWT.Label $ResponseLineDialogPanel TEXT "Description" VDISTANCE 35 HDISTANCE 120; 
+		RWT.TextField $ResponseLineDialogPanel HDISTANCE 220 VDISTANCE 30 COLUMNS 30 OBJECT $ResponseDescriptionTF;
+
+		RWT.Label $ResponseLineDialogPanel TEXT "Quantity" VDISTANCE 65 HDISTANCE 120; 
+		RWT.TextField $ResponseLineDialogPanel HDISTANCE 220 VDISTANCE 60 COLUMNS 30 OBJECT $ResponseQuantityTF;
+
+		RWT.Label $ResponseLineDialogPanel TEXT "Measure" VDISTANCE 95 HDISTANCE 120; 
+		RWT.TextField $ResponseLineDialogPanel HDISTANCE 220 VDISTANCE 90 COLUMNS 30 OBJECT $ResponseMeasureTF;
+
+		RWT.Label $ResponseLineDialogPanel TEXT "Price" VDISTANCE 125 HDISTANCE 120; 
+		RWT.TextField $ResponseLineDialogPanel HDISTANCE 220 VDISTANCE 120 COLUMNS 30 OBJECT $ResponsePriceTF;
+
+		RWT.Label $ResponseLineDialogPanel TEXT "Total" VDISTANCE 155 HDISTANCE 120; 
+		RWT.TextField $ResponseLineDialogPanel HDISTANCE 220 VDISTANCE 150 COLUMNS 30 OBJECT $ResponseTotalTF;
+
+		#RWT.Button $ResponseLineDialogPanel TEXT "Generate" VDISTANCE 150 HDISTANCE 220 WIDTH 70         
+		#	TOOLTIP	 "Auto fill in line information" OBJECT $LineDialogGenerateButton;
+
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	EventConstruct
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT EventConstruct 
+{
+	TRY
+	{
+		# Main window
+		RWT.CloseEvent		$ResponseWindow					HANDLER SIDENT(CloseResponseWindow);
+		RWT.SelectEvent		$ResponseWindowCloseButton		HANDLER SIDENT(CloseResponseWindow);
+		RWT.SelectEvent		$ResponseWindowSaveButton		HANDLER SIDENT(SaveResponseWindow);
+
+		# ASN Tab
+		RWT.DoubleSelectEvent $AsnColumnList				HANDLER SIDENT(HandleAsnColumnListEvent);
+		RWT.SelectEvent		  $AsnColumnList				HANDLER SIDENT(SetAsnCurrentTab);
+
+		# Invoice Tab
+		RWT.DoubleSelectEvent $InvoiceColumnList			HANDLER SIDENT(HandleInvoiceColumnListEvent);
+		RWT.SelectEvent		  $InvoiceColumnList			HANDLER SIDENT(SetInvoiceCurrentTab);
+
+		# Line Dialog Events
+	    RWT.CloseEvent		$ResponseLineDialog				HANDLER SIDENT(PopDownDialog);
+		RWT.CancelEvent		$ResponseLineDialog				HANDLER SIDENT(PopDownDialog);
+		RWT.OkEvent			$ResponseLineDialog				HANDLER SIDENT(UpdateLineToColumnList);
+
+		# Popup Menu ASN
+		RWT.SelectEvent		$AsnPopUpMenuEdit				HANDLER SIDENT(HandleAsnColumnListEvent);
+		#RWT.SelectEvent		$AsnPopUpMenuAdd				HANDLER SIDENT(AsnColumnListAddLine);
+		RWT.SelectEvent		$AsnPopUpMenuDelete				HANDLER SIDENT(DeleteSelectedLine);
+
+		# Popup Menu Invoice
+		RWT.SelectEvent		$InvoicePopUpMenuEdit			HANDLER SIDENT(HandleInvoiceColumnListEvent);
+		RWT.SelectEvent		$InvoicePopUpMenuDelete			HANDLER SIDENT(DeleteSelectedLine);
+
+		# Abstract Dialog 
+		RWT.SelectEvent		$ResponseDialogYes				HANDLER SIDENT(CreateResponseFiles);
+		RWT.SelectEvent		$ResponseDialogNo				HANDLER SIDENT(PopDownResponseDialog);
+		RWT.SelectEvent		$ResponseDialogCancel			HANDLER SIDENT(CancelResponseDialog);
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	Saved
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT Saved
+{
+	$mSaveFlag = $FALSE;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	NotSaved
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT NotSaved
+{
+	$mSaveFlag = $TRUE;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CloseResponseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT CloseResponseWindow IN $Obj RECORD RWT.Object
+{
+	DECLARE $ClassName STRING;
+
+	$ClassName = RWT.GetClassName($obj);
+
+	CASE $ClassName
+	WHEN "Application"
+	{
+		DestroyResponseWindow;
+	}
+	WHEN "Button"
+	{
+		TraceDebug "Popping Down Response Window";
+		RWT.PopDown $ResponseWindow;
+	}
+	WHEN OTHERS
+	{
+		LOG "Unknown object class(" & $ClassName & ")" TYPE "ERROR";
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	IfOpenCloseResponseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT IfOpenCloseResponseWindow
+{
+	TRY
+	{
+	    # If Response window is open close it.
+		IF NOT RWT.IsEqual($ResponseWindow, $gEmptyRwtObject) 
+		{
+			TraceDebug "Response window exists!";
+			DestroyResponseWindow;
+		}
+		ELSE 
+		{ 
+			TraceDebug "Response is not open";
+		}
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	DestroyResponseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT DestroyResponseWindow 
+{
+	IF $mSaveFlag 
+	{
+		Saved;
+		RWT.PopUp $ResponseDialog;
+	}
+	ELSE 
+	{
+		TraceDebug "Destroying Response Window!";
+		RWT.Destroy $ResponseWindow;
+		$ResponseWindow = RWT.Null();
+		RWT.InSensitive $ViewMenuResponseWindow;
+		Saved;
+	}
+
+	RETURN;
+}
+/*---------------------------------------------------------------------------------------
+@NAME	SaveResponseWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SaveResponseWindow IN $Obj RECORD RWT.Object
+{
+	RWT.PopUp $ResponseDialog;
+	RETURN;
+}
+/*---------------------------------------------------------------------------------------
+@NAME	CancelResponseDialog
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT CancelResponseDialog IN $Obj RECORD RWT.Object
+{
+	NotSaved;
+	RWT.Popdown $ResponseDialog;
+	RETURN;
+}
+/*---------------------------------------------------------------------------------------
+@NAME	PopDownResponseDialog
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT PopDownResponseDialog IN $Obj RECORD RWT.Object
+{
+	RWT.Popdown $ResponseDialog;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateResponseFiles
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT CreateResponseFiles IN $Obj RECORD RWT.Object
+{
+	TRY
+	{
+	    TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		getUpdatesFromResponseWindows;
+
+		ccOrderSysInhouse.CreateInhAsn		$mOrderInfo
+								ASN			$mAsn
+								CONFIG		$gPreferences;
+		
+		ccOrderSysInhouse.CreateInhInvoice	$mOrderInfo
+								INVOICE		$mInvoice	
+								ASN			$mAsn
+								CONFIG		$gPreferences;
+
+		ccOrderSysEDI.CreateEdiPayment		$mOrderInfo
+								PAYMENT		$mPayment
+								CONFIG		$gPreferences;
+								
+		PopDownResponseDialog $Obj;
+		Saved;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Failed to create Response files: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	getUpdatesFromResponseWindows
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT getUpdatesFromResponseWindows
+{
+	TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+	#ASN Tab
+	$mAsn.$ControlNumber	=	RWT.GetText($AsnControlNumberTF);		
+	$mAsn.$FunctionlGrpNum	=	RWT.GetText($AsnFunctionalGrpNumTF);	
+	$mAsn.$TransactionNum	=	RWT.GetText($AsnTransactionNumTF);	
+	$mAsn.$PoNumber			=	RWT.GetText($AsnPoNumberTF);		
+	$mAsn.$FirstShipDate	=	RWT.GetText($AsnFirstShipDateTF);		
+	$mAsn.$LastShipDate		=	RWT.GetText($AsnLastShipDateTF);
+
+	#Invoice Tab
+	$mInvoice.$ControlNumber   = RWT.GetText($InvoiceControlNumberTF);
+	$mInvoice.$FunctionlGrpNum = RWT.GetText($InvoiceFunctionalGrpNumTF); 
+	$mInvoice.$TransactionNum  = RWT.GetText($InvoiceTransactionNumTF); 
+	$mInvoice.$PONumber        = RWT.GetText($InvoicePoNumberTF); 
+	$mInvoice.$InvNumber       = RWT.GetText($InvoiceNumberTF); 
+	$mInvoice.$InvTotal        = RWT.GetText($InvoiceTotalTF); 
+
+	#payment Tab
+	$mPayment.$ControlNumber	=	RWT.GetText($PaymentControlNumberTF);		
+	$mPayment.$FunctionlGrpNum	=	RWT.GetText($PaymentFunctionalGrpNumTF);		
+	$mPayment.$TransactionNum	=	RWT.GetText($PaymentTransactionNumTF);		
+	$mPayment.$PoNumber			=	RWT.GetText($PaymentPoNumberTF);			
+	$mPayment.$PayNumber		=	RWT.GetText($PaymentNumberTF);			
+	$mPayment.$PayTotal			=	RWT.GetText($PaymentTotalTF);	
+
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	SetInvoiceCurrentTab
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SetInvoiceCurrentTab IN $Obj RECORD RWT.Object
+{
+	$mCurrentTab = $mInvoiceTab;
+	TraceDebug "CurrentTab(" & $mCurrentTab & ")";
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SetAsnCurrentTab
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT SetAsnCurrentTab IN $Obj RECORD RWT.Object
+{
+	$mCurrentTab = $mAsnTab;
+	TraceDebug "CurrentTab(" & $mCurrentTab & ")";
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SetOrderInfo
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT SetOrderInfo IN $OrderInfo RECORD OrderInfo
+{
+	TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+	$mOrderInfo = $gEmptyOrderInfo;
+	$mOrderInfo = $OrderInfo;	
+
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	HandleAsnColumnListEvent
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT HandleAsnColumnListEvent IN $Obj RECORD RWT.Object
+{
+	DECLARE $index[]	INTEGER;
+
+	TraceDebug SOURCEPROCEDURE();
+
+	$index = RWT.ColumnListGetSelected($AsnColumnList);
+
+	IF ARRAYSIZE($index) 
+	{
+		TraceDebug "selected index(" & $index[1] & ")";
+		RWT.SetPicture $ResponseLineDialogPicture BITMAPNAME  "SynchronyGearsYellow";
+
+		RWT.SetText $ResponseCatelogNumberTF VALUE $mAsn.$line[$index[1]].$CatelogNumber;	
+		RWT.SetText $ResponseDescriptionTF	 VALUE $mAsn.$line[$index[1]].$Description;	
+		RWT.SetText $ResponseQuantityTF		 VALUE $mAsn.$line[$index[1]].$Quantity;		
+		RWT.SetText $ResponseMeasureTF		 VALUE $mAsn.$line[$index[1]].$Measure;		
+		RWT.SetText $ResponsePriceTF		 VALUE $mAsn.$line[$index[1]].$Price;			
+		RWT.SetText $ResponseTotalTF		 VALUE $mAsn.$line[$index[1]].$Total;			
+
+		RWT.Popup $ResponseLineDialog;
+
+		$mCurrentTab = $mAsnTab;
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	HandleInvoiceColumnListEvent
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT HandleInvoiceColumnListEvent IN $Obj RECORD RWT.Object
+{
+	DECLARE $index[]	INTEGER;
+
+	TraceDebug SOURCEPROCEDURE();
+
+	$index = RWT.ColumnListGetSelected($InvoiceColumnList);
+
+	IF ARRAYSIZE($index) 
+	{
+		TraceDebug "selected index(" & $index[1] & ")";
+		RWT.SetPicture $ResponseLineDialogPicture BITMAPNAME  "SynchronyGearsBlue"; 
+
+		RWT.SetText $ResponseCatelogNumberTF VALUE $mInvoice.$line[$index[1]].$CatelogNumber;	
+		RWT.SetText $ResponseDescriptionTF	 VALUE $mInvoice.$line[$index[1]].$Description;	
+		RWT.SetText $ResponseQuantityTF		 VALUE $mInvoice.$line[$index[1]].$Quantity;		
+		RWT.SetText $ResponseMeasureTF		 VALUE $mInvoice.$line[$index[1]].$Measure;		
+		RWT.SetText $ResponsePriceTF		 VALUE $mInvoice.$line[$index[1]].$Price;			
+		RWT.SetText $ResponseTotalTF		 VALUE $mInvoice.$line[$index[1]].$Total;			
+
+		RWT.Popup $ResponseLineDialog;
+
+		$mCurrentTab = $mInvoiceTab;
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	UpdateLineToColumnList
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT UpdateLineToColumnList IN $Obj RECORD RWT.Object
+{
+	DECLARE $i[]	INTEGER;
+
+	TRY
+	{
+	    IF $mCurrentTab = $mAsnTab 
+		{
+			$i = RWT.ColumnListGetSelected($AsnColumnList);
+
+			$mAsn.$line[$i[1]].$CatelogNumber	= RWT.GetText($ResponseCatelogNumberTF);
+			$mAsn.$line[$i[1]].$Description		= RWT.GetText($ResponseDescriptionTF);	
+			$mAsn.$line[$i[1]].$Quantity		= RWT.GetText($ResponseQuantityTF);		
+			$mAsn.$line[$i[1]].$Measure			= RWT.GetText($ResponseMeasureTF);		
+			$mAsn.$line[$i[1]].$Price			= RWT.GetText($ResponsePriceTF);		
+			#$mAsn.$line[$i[1]].$Total			= RWT.GetText($ResponseTotalTF);
+			$mAsn.$line[$i[1]].$Total			= FORMAT("%.2f", $mAsn.$line[$i[1]].$Price * $mAsn.$line[$i[1]].$Quantity);
+			
+			LoadAsnColumnList;
+		}
+		ELSE IF $mCurrentTab = $mInvoiceTab 
+		{
+			$i = RWT.ColumnListGetSelected($InvoiceColumnList);
+
+			$mInvoice.$line[$i[1]].$CatelogNumber	= RWT.GetText($ResponseCatelogNumberTF);
+			$mInvoice.$line[$i[1]].$Description		= RWT.GetText($ResponseDescriptionTF);	
+			$mInvoice.$line[$i[1]].$Quantity		= RWT.GetText($ResponseQuantityTF);		
+			$mInvoice.$line[$i[1]].$Measure			= RWT.GetText($ResponseMeasureTF);		
+			$mInvoice.$line[$i[1]].$Price			= RWT.GetText($ResponsePriceTF);		
+			#$mInvoice.$line[$i[1]].$Total			= RWT.GetText($ResponseTotalTF);
+			$mInvoice.$line[$i[1]].$Total			= FORMAT("%.2f", $mInvoice.$line[$i[1]].$Price * $mInvoice.$line[$i[1]].$Quantity);
+			
+			LoadInvoiceColumnList;
+			UpdateInvoiceAndPaymentTotal;
+		}
+		ELSE
+		{
+			LOG "Current Tab not set!" TYPE "ERROR";  
+		}
+
+		PopDownDialog $Obj;
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	DeleteSelectedLine
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT DeleteSelectedLine IN $Obj RECORD RWT.Object
+{
+	DECLARE $index[]		INTEGER;
+	DECLARE $items[]		STRING;
+	DECLARE $lineRec[]		RECORD Order;
+	DECLARE $bitmaps[]		STRING;
+	DECLARE $j				INTEGER;
+	
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		CASE $mCurrentTab 
+		WHEN $mAsnTab 
+		{
+			$index = RWT.ColumnListGetSelected($AsnColumnList);
+			IF ARRAYSIZE($index) 
+			{
+				TraceDebug "selected index(" & $index[1] & ")";
+				FOR $i = 1 TO ARRAYSIZE($mAsn.$line) 
+				{
+					IF $i <> $index[1] 
+					{
+						$j = $j + 1;
+						$lineRec[$j]	= $mAsn.$line[$i];
+					}
+				}
+				$mAsn.$line		= $lineRec;
+				LoadAsnColumnList;
+			} # end IF ARRAYSIZE($index) 
+		}
+		WHEN $mInvoiceTab
+		{
+			$index = RWT.ColumnListGetSelected($InvoiceColumnList);
+			IF ARRAYSIZE($index) 
+			{
+				TraceDebug "selected index(" & $index[1] & ")";
+				FOR $i = 1 TO ARRAYSIZE($mInvoice.$line) 
+				{
+					IF $i <> $index[1] 
+					{
+						$j = $j + 1;
+						$lineRec[$j] = $mInvoice.$line[$i];
+					}
+				}
+				$mInvoice.$line = $lineRec;
+				LoadInvoiceColumnList;
+
+				# Update total field
+				UpdateInvoiceAndPaymentTotal;
+
+			} # end IF ARRAYSIZE($index) 
+		}
+		WHEN OTHERS
+		{
+			LOG "Current Tab not set(" & $mCurrentTab & ")" TYPE "WARNING";
+		}
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopulateInvocieWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT PopulateInvocieWindow
+{
+	DECLARE $invoiceTotal STRING;
+
+	TRY
+	{
+		# Init Object
+		$mInvoice = $gEmptyInvoiceRec;
+
+		# Map to module Invoice object
+		$mInvoice.$ControlNumber	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_IntConNum);
+		$mInvoice.$FunctionlGrpNum	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_GrpConNum);
+		$mInvoice.$TransactionNum	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_DocConNum);
+		$mInvoice.$PONumber			= $gPoNumber;
+		$mInvoice.$InvNumber		= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_InvNum);
+		$mInvoice.$OutputPath		= $gPreferences.$InvoiceOutputDirectory;
+			
+		FOR $i = 1 TO ARRAYSIZE($gOrderRec)
+		{
+			$mInvoice.$line[$i].$CatelogNumber	= $gOrderRec[$i].$CatelogNumber; 
+			$mInvoice.$line[$i].$Description	= $gOrderRec[$i].$Description;	
+			$mInvoice.$line[$i].$Quantity		= $gOrderRec[$i].$Quantity;		
+			$mInvoice.$line[$i].$Measure		= $gOrderRec[$i].$Measure;		
+			$mInvoice.$line[$i].$Price			= $gOrderRec[$i].$Price;			
+			$mInvoice.$line[$i].$Total			= FORMAT("%0.2f", $gOrderRec[$i].$Price * $gOrderRec[$i].$Quantity); 
+		
+			$invoiceTotal = $invoiceTotal + $mInvoice.$line[$i].$Total;
+		}
+		
+		$mInvoice.$InvTotal  = FORMAT("%0.2f", $invoiceTotal);
+
+
+		# Populate Invoice Tab.
+
+		RWT.SetText $InvoiceControlNumberTF		VALUE $mInvoice.$ControlNumber;
+		RWT.SetText $InvoiceFunctionalGrpNumTF	VALUE $mInvoice.$FunctionlGrpNum;
+		RWT.SetText $InvoiceTransactionNumTF	VALUE $mInvoice.$TransactionNum;
+		RWT.SetText $InvoicePoNumberTF			VALUE $mInvoice.$PONumber;
+		RWT.SetText $InvoiceNumberTF			VALUE $mInvoice.$InvNumber;
+		RWT.SetText $InvoiceTotalTF				VALUE $mInvoice.$InvTotal;
+
+		LoadInvoiceColumnList;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	UpdateInvoiceAndPaymentTotal
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT UpdateInvoiceAndPaymentTotal 
+{
+	DECLARE $sum FLOAT;
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		FOR $i = 1 TO ARRAYSIZE($mInvoice.$line) 
+		{
+			$sum = $sum + $mInvoice.$line[$i].$Total;
+		}
+
+		$mInvoice.$InvTotal = FORMAT("%.2f", $sum);
+		$mPayment.$PayTotal = $mInvoice.$InvTotal;
+
+	    RWT.SetText $InvoiceTotalTF				VALUE $mInvoice.$InvTotal;
+		RWT.SetText $PaymentTotalTF				VALUE $mPayment.$PayTotal;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Failed to update totals: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	LoadInvoiceColumnList
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT LoadInvoiceColumnList
+{
+	DECLARE $bitmaps[]	STRING;
+	DECLARE $items[]	STRING;
+	
+	TRY
+	{
+	    FOR $i = 1 TO ARRAYSIZE($mInvoice.$line) 
+		{
+			$items[$i] = "Line " & $i	& "\t" &
+					$mInvoice.$line[$i].$CatelogNumber & "\t" &
+					$mInvoice.$line[$i].$Description & "\t" &
+					$mInvoice.$line[$i].$Quantity & "\t" &
+					$mInvoice.$line[$i].$Price & "\t" &
+					$mInvoice.$line[$i].$Total;
+
+			$bitmaps[$i] = "Cash_w16";		
+		}
+
+		RWT.ColumnListClear  $InvoiceColumnList;
+		RWT.ColumnListInsert $InvoiceColumnList ITEMS $items BITMAPNAMES $bitmaps;
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopulateAsnWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT PopulateAsnWindow
+{
+	TRY
+	{
+		# Init Object
+		$mAsn = $gEmptyAsnRec;
+		
+		# Map to module ASN object
+		$mAsn.$ControlNumber	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_IntConNum); 		
+		$mAsn.$FunctionlGrpNum	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_GrpConNum);
+		$mAsn.$TransactionNum	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_DocConNum);
+		$mAsn.$PoNumber			= $gPoNumber;                                                      
+		$mAsn.$FirstShipDate	= ccOrderSysEDI.DateAdd(DATE(CurrentDate(),"%Y-%b-%d"), "%Y-%b-%d", 2);	
+		$mAsn.$LastShipDate		= ccOrderSysEDI.DateAdd(DATE(CurrentDate(),"%Y-%b-%d"), "%Y-%b-%d", 7);
+		$mAsn.$OutputPath		= $gPreferences.$AsnOutputDirectory;
+		
+		FOR $i = 1 TO ARRAYSIZE($gOrderRec)
+		{
+			$mAsn.$line[$i].$CatelogNumber	= $gOrderRec[$i].$CatelogNumber; 
+			$mAsn.$line[$i].$Description	= $gOrderRec[$i].$Description;	
+			$mAsn.$line[$i].$Quantity		= $gOrderRec[$i].$Quantity;		
+			$mAsn.$line[$i].$Measure		= $gOrderRec[$i].$Measure;		
+			$mAsn.$line[$i].$Price			= $gOrderRec[$i].$Price;			
+			$mAsn.$line[$i].$Total			= FORMAT("%0.2f", $gOrderRec[$i].$Price * $gOrderRec[$i].$Quantity); 
+		}
+
+		# Populate ASN Tab.
+
+		RWT.SetText $AsnControlNumberTF		VALUE $mAsn.$ControlNumber;
+		RWT.SetText $AsnFunctionalGrpNumTF	VALUE $mAsn.$FunctionlGrpNum;
+		RWT.SetText $AsnTransactionNumTF	VALUE $mAsn.$TransactionNum;
+		RWT.SetText $AsnPoNumberTF			VALUE $mAsn.$PoNumber;
+		RWT.SetText $AsnFirstShipDateTF		VALUE $mAsn.$FirstShipDate;
+		RWT.SetText $AsnLastShipDateTF		VALUE $mAsn.$LastShipDate;
+
+		LoadAsnColumnList;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	LoadAsnColumnList
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT LoadAsnColumnList
+{
+	DECLARE $bitmaps[]	STRING;
+	DECLARE $items[]	STRING;
+	
+	TRY
+	{
+
+		FOR $i = 1 TO ARRAYSIZE($mAsn.$line) 
+		{
+			$items[$i] = "Line " & $i	& "\t" &
+					$mAsn.$line[$i].$CatelogNumber & "\t" &
+					$mAsn.$line[$i].$Description & "\t" &
+					$mAsn.$line[$i].$Quantity & "\t" &
+					$mAsn.$line[$i].$Measure & "\t" &
+					$mAsn.$line[$i].$Price;
+
+			$bitmaps[$i] = "basket_w16";		
+		}
+
+		RWT.ColumnListClear  $AsnColumnList;
+		RWT.ColumnListInsert $AsnColumnList ITEMS $items BITMAPNAMES $bitmaps;	    
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	PopulatePaymentWindow
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT PopulatePaymentWindow
+{
+	TRY
+	{
+	    # Init Object
+		$mPayment = $gEmptyPaymentRec;
+
+		$mPayment.$ControlNumber	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_IntConNum); 
+		$mPayment.$FunctionlGrpNum	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_GrpConNum); 
+		$mPayment.$TransactionNum	= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_DocConNum); 
+		$mPayment.$PoNumber			= $gPoNumber;                                                       
+		$mPayment.$PayNumber		= DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_PayNum);	
+		$mPayment.$PayTotal			= $mInvoice.$InvTotal;
+		$mPayment.$OutputPath		= $gPreferences.$PaymentOutputDirectory;
+
+		RWT.SetText $PaymentControlNumberTF		VALUE $mPayment.$ControlNumber;
+		RWT.SetText $PaymentFunctionalGrpNumTF	VALUE $mPayment.$FunctionlGrpNum;
+		RWT.SetText $PaymentTransactionNumTF	VALUE $mPayment.$TransactionNum;
+		RWT.SetText $PaymentPoNumberTF			VALUE $mPayment.$PoNumber;
+		RWT.SetText $PaymentNumberTF			VALUE $mPayment.$PayNumber;
+		RWT.SetText $PaymentTotalTF				VALUE $mPayment.$PayTotal;
+
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+
+
+
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	AbstractDialog
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT AbstractDialog	IN $app_obj		RECORD RWT.Object 
+						TEXT		IN $text		PRIMITIVE
+						YES			OUT $yes		RECORD RWT.Object
+						NO			OUT $no			RECORD RWT.Object
+						CANCEL		OUT $cancel		RECORD RWT.Object
+						OBJECT		OUT $dialog		RECORD RWT.Object
+{
+	TRY
+	{
+	    # Abstract Confirmation Dialog -----------------------------------------------------------------------------------------
+		RWT.Dialog $app_obj TITLE "Confirmation" BUTTONS RWT.$none OBJECT $Dialog;
+		RWT.Panel $Dialog FRAME RWT.$true MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $AbstractConfirmationPanel;
+
+		RWT.Picture $AbstractConfirmationPanel BITMAPNAME "integration_blue" TRANSPARENT RWT.$true;
+		RWT.Label $AbstractConfirmationPanel VDISTANCE 20 HDISTANCE 100 
+			TEXT  $text OBJECT $AbstractConfirmationLabel;   
+
+		RWT.Button $AbstractConfirmationPanel TEXT "Yes"	VDISTANCE 90 WIDTH 60 HDISTANCE 160 OBJECT $Yes;
+		RWT.Button $AbstractConfirmationPanel TEXT "No"		VDISTANCE 90 WIDTH 60 HDISTANCE 230 OBJECT $No;
+		RWT.Button $AbstractConfirmationPanel TEXT "Cancel" VDISTANCE 90 WIDTH 60 HDISTANCE 300 OBJECT $Cancel;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+
+
+
+
+/*--------------------------------------------------------------------
+ * MODULE_CLEAN
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_CLEAN
+{
+	
+	RETURN;
+}
+
+} # End Module

@@ -1,0 +1,359 @@
+/* Message Builder source file
+ *	File: ccOrderSysRandom.s4m
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:			Description:
+ *	----------	-------		-------			------------
+ *	23-04-2009	1.0.0		Mohib Miah      Inital version
+ *
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h"			once;
+include "sysinfo.s4h"		once;
+include "ccOrderSys.s4h"	once;
+
+DECLARE MODULE ccOrderSysRandom  {
+
+DECLARE $mDebug = 0	INTEGER;
+
+/*--------------------------------------------------------------------
+ * Version
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Version() 
+{
+	RETURN SOURCEMODULE() & " Version 1.0.0";
+}
+
+/*--------------------------------------------------------------------
+ * MODULE_INIT
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_INIT 
+{
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	GetOrderLines
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION GetOrderLines() [] RECORD Order
+{
+	DECLARE $OrderRec[] RECORD Order;
+	DECLARE $Random		INTEGER;
+
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		$Random = Random();
+		TraceDebug "Random number(" & $Random & ")";
+
+	    CASE $Random
+	    WHEN 1
+	    {
+	    	$OrderRec[1].$CatelogNumber  = "100023";
+			$OrderRec[1].$Description	  = "Red widget";
+			$OrderRec[1].$Quantity		  = "12";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "19.95";	
+
+			$OrderRec[2].$CatelogNumber  = "100024";
+			$OrderRec[2].$Description	  = "Green widget";
+			$OrderRec[2].$Quantity		  = "10";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "18.95";
+
+			$OrderRec[3].$CatelogNumber  = "100025";
+			$OrderRec[3].$Description	  = "Blue widget";
+			$OrderRec[3].$Quantity		  = "8";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "17.95";
+	    }
+		WHEN 2
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100026";
+			$OrderRec[1].$Description	  = "Violet widget";
+			$OrderRec[1].$Quantity		  = "15";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "20.00";	
+
+			$OrderRec[2].$CatelogNumber  = "100027";
+			$OrderRec[2].$Description	  = "Indigo widget";
+			$OrderRec[2].$Quantity		  = "10";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price			= "20.00";
+
+			$OrderRec[3].$CatelogNumber  = "100028";
+			$OrderRec[3].$Description	  = "Yellow widget";
+			$OrderRec[3].$Quantity		  = "12";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price			= "19.00";
+
+			$OrderRec[4].$CatelogNumber	= "100029";
+			$OrderRec[4].$Description	  = "Orange widget";
+			$OrderRec[4].$Quantity		  = "8";	
+			$OrderRec[4].$Measure		  = "KG";
+			$OrderRec[4].$Price			= "19.00";
+		}
+		WHEN 3
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100030";
+			$OrderRec[1].$Description	  = "Magenta widget";
+			$OrderRec[1].$Quantity		  = "20";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "19.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100031";
+			$OrderRec[2].$Description	  = "Coral Red widget";
+			$OrderRec[2].$Quantity		  = "15";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price				= "19.99";
+
+			$OrderRec[3].$CatelogNumber  = "100032";
+			$OrderRec[3].$Description	  = "Rose widget";
+			$OrderRec[3].$Quantity		  = "18";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "19.99";
+		}
+		WHEN 4
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100033";
+			$OrderRec[1].$Description	  = "Amber widget";
+			$OrderRec[1].$Quantity		  = "5";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "20.00";	
+
+			$OrderRec[2].$CatelogNumber  = "100034";
+			$OrderRec[2].$Description	  = "Peach widget";
+			$OrderRec[2].$Quantity		  = "10";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "20.00";
+
+			$OrderRec[3].$CatelogNumber  = "100035";
+			$OrderRec[3].$Description	  = "Rust widget";
+			$OrderRec[3].$Quantity		  = "15";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "20.00";
+
+			$OrderRec[4].$CatelogNumber  = "100036";
+			$OrderRec[4].$Description	  = "Tangerine widget";
+			$OrderRec[4].$Quantity		  = "20";	
+			$OrderRec[4].$Measure		  = "KG";
+			$OrderRec[4].$Price		  = "20.00";
+		}
+		WHEN 5
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100037";
+			$OrderRec[1].$Description	  = "Bronze widget";
+			$OrderRec[1].$Quantity		  = "7";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "19.95";	
+
+			$OrderRec[2].$CatelogNumber  = "100038";
+			$OrderRec[2].$Description	  = "Burnt Umber widget";
+			$OrderRec[2].$Quantity		  = "8";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "19.95";
+		}
+		WHEN 6
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100039";
+			$OrderRec[1].$Description	  = "Golden widget";
+			$OrderRec[1].$Quantity		  = "5";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "15.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100040";
+			$OrderRec[2].$Description	  = "Mustard widget";
+			$OrderRec[2].$Quantity		  = "6";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "15.99";
+
+	    	$OrderRec[3].$CatelogNumber  = "100041";
+			$OrderRec[3].$Description	  = "Olive widget";
+			$OrderRec[3].$Quantity		  = "7";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "15.99";	
+
+			$OrderRec[4].$CatelogNumber  = "100042";
+			$OrderRec[4].$Description	  = "Lemon widget";
+			$OrderRec[4].$Quantity		  = "8";	
+			$OrderRec[4].$Measure		  = "KG";
+			$OrderRec[4].$Price		  = "15.99";
+		}
+		WHEN 7
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100043";
+			$OrderRec[1].$Description	  = "Gray widget";
+			$OrderRec[1].$Quantity		  = "10";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "18.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100044";
+			$OrderRec[2].$Description	  = "Silver widget";
+			$OrderRec[2].$Quantity		  = "11";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "17.99";
+
+
+			$OrderRec[3].$CatelogNumber  = "100046";
+			$OrderRec[3].$Description	  = "Black widget";
+			$OrderRec[3].$Quantity		  = "12";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "15.99";
+		}
+		WHEN 8
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100047";
+			$OrderRec[1].$Description	  = "Fern Green widget";
+			$OrderRec[1].$Quantity		  = "10";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "24.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100048";
+			$OrderRec[2].$Description	  = "Lime widget";
+			$OrderRec[2].$Quantity		  = "12";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "20.99";
+
+
+			$OrderRec[3].$CatelogNumber  = "100049";
+			$OrderRec[3].$Description	  = "British Racing Green widget";
+			$OrderRec[3].$Quantity		  = "16";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "29.99";
+		}
+		WHEN 9
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100050";
+			$OrderRec[1].$Description	  = "Aqua widget";
+			$OrderRec[1].$Quantity		  = "10";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "18.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100051";
+			$OrderRec[2].$Description	  = "Aquamarine widget";
+			$OrderRec[2].$Quantity		  = "12";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "18.99";
+
+
+			$OrderRec[3].$CatelogNumber  = "100052";
+			$OrderRec[3].$Description	  = "Teal widget";
+			$OrderRec[3].$Quantity		  = "16";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "18.99";
+		}
+		WHEN 0
+		{
+	    	$OrderRec[1].$CatelogNumber  = "100053";
+			$OrderRec[1].$Description	  = "Light Blue widget";
+			$OrderRec[1].$Quantity		  = "10";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "11.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100054";
+			$OrderRec[2].$Description	  = "Sky Blue widget";
+			$OrderRec[2].$Quantity		  = "12";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "12.99";
+
+			$OrderRec[3].$CatelogNumber  = "100055";
+			$OrderRec[3].$Description	  = "Sapphire widget";
+			$OrderRec[3].$Quantity		  = "16";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "13.99";
+
+			$OrderRec[4].$CatelogNumber  = "100056";
+			$OrderRec[4].$Description	  = "Steel Blue widget";
+			$OrderRec[4].$Quantity		  = "16";	
+			$OrderRec[4].$Measure		  = "KG";
+			$OrderRec[4].$Price		  = "14.99";
+
+			$OrderRec[5].$CatelogNumber  = "100057";
+			$OrderRec[5].$Description	  = "Royal Blue widget";
+			$OrderRec[5].$Quantity		  = "16";	
+			$OrderRec[5].$Measure		  = "KG";
+			$OrderRec[5].$Price		  = "15.99";
+		}
+	    WHEN OTHERS
+	    {
+	    	$OrderRec[1].$CatelogNumber  = "100060";
+			$OrderRec[1].$Description	  = "White widget";
+			$OrderRec[1].$Quantity		  = "10";	
+			$OrderRec[1].$Measure		  = "KG";
+			$OrderRec[1].$Price		  = "14.99";	
+
+			$OrderRec[2].$CatelogNumber  = "100061";
+			$OrderRec[2].$Description	  = "Purple widget";
+			$OrderRec[2].$Quantity		  = "10";	
+			$OrderRec[2].$Measure		  = "KG";
+			$OrderRec[2].$Price		  = "14.99";
+
+			$OrderRec[3].$CatelogNumber  = "100062";
+			$OrderRec[3].$Description	  = "Maroon widget";
+			$OrderRec[3].$Quantity		  = "10";	
+			$OrderRec[3].$Measure		  = "KG";
+			$OrderRec[3].$Price		  = "14.99";
+
+	    }
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN $OrderRec;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	Random
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Random()
+{
+	DECLARE $millisecond STRING;
+	TRY
+	{
+		#TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+	    $millisecond = DATE(CURRENTDATE(), "%t");
+
+		IF strlen($millisecond) > 1 
+		{
+			$millisecond = $millisecond[2,2];
+		}
+
+		#TraceDebug "Random millisecond(" & $millisecond & ")";
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN $millisecond;
+}
+
+
+/*--------------------------------------------------------------------
+ * MODULE_CLEAN
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_CLEAN
+{
+	
+	RETURN;
+}
+
+} # End Module

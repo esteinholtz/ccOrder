@@ -1,0 +1,940 @@
+/* Message Builder source file
+ *	File: ccOrderSysEDI.s4m
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:		Description:
+ *	----------	-------		-------		------------
+ *	16-04-2009	1.0.0		Mohib Miah      Inital version
+ *      20131125        1.0.1           C.Hartmann	updated EDIFACT content
+ *      20131125        1.0.2           C.Hartmann	fixed EDIFACT UNB date format
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h"				once;
+include "sysinfo.s4h"			once;
+include "ccOrderSys.s4h"		once;
+
+DECLARE MODULE ccOrderSysEDI  {
+
+DECLARE $mDebug = 0	INTEGER;
+
+
+DECLARE $EndOfLine	= "\n"		CONSTANT STRING;
+DECLARE $Sep		= "#"		CONSTANT STRING;
+
+DECLARE $mOrderInfo		RECORD OrderInfo;
+DECLARE $mCurrentDate	STRING;
+DECLARE $mCurrentTime	STRING;
+
+#DECLARE $TimerId		INTEGER;
+
+
+/*--------------------------------------------------------------------
+ * Version
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Version() 
+{
+	RETURN SOURCEMODULE() & " Version 1.0.2";
+}
+
+/*--------------------------------------------------------------------
+ * MODULE_INIT
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_INIT 
+{
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateX12Order
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT CreateOrder		IN $OrderInfo  RECORD OrderInfo
+								CONFIG		IN $Preferences RECORD Preferences
+								SLEEPTIME	IN OUT $SleepTime 
+								SYNTAX		IN $EdiSyntax
+{
+	DECLARE $CurrentDate		STRING;
+	DECLARE $CurrentTime		STRING;
+	DECLARE $DeliveryEndDate	STRING;
+	DECLARE $fileName			STRING;
+
+	TRY
+	{
+	    TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		debugOrderInfoRecord $Orderinfo;
+		
+		$CurrentDate = DATE(CURRENTDATE(), "%Y%m%d");
+		$CurrentTime = DATE(CURRENTDATE(), "%H%M");		
+
+		$fileName = "ord_" & DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_FileName);
+		$fileName = $OrderInfo.$outputPath & SL_FILEIO.DirectorySeparator() & $fileName & ".edi";
+
+		CASE $EdiSyntax
+		WHEN "X12"
+		{
+			X12_WriteOrdersToFile $OrderInfo CDATE $CurrentDate CTIME $CurrentTime OUTFILE $fileName;
+		}
+		WHEN "EDIFACT"
+		{
+			EDIFACT_WriteOrdersToFile $OrderInfo CDATE $CurrentDate CTIME $CurrentTime OUTFILE $fileName
+				CONFIG $Preferences;		
+		}
+		WHEN OTHERS
+		{
+			LOG "Unknown Output Syntax!" TYPE "ERROR";
+		}
+
+		StatusMessage $EdiSyntax & " output file created(" & $fileName & ")" TYPE "INFO";
+
+		IF ARRAYSIZE($OrderInfo.$Details) = 0 
+		{
+			StatusMessage "No line details provided." TYPE "WARNING";
+		}
+
+		$mOrderInfo		= $OrderInfo;
+		$mCurrentDate	= $CurrentDate;
+		$mCurrentTime	= $CurrentTime;
+
+
+		TraceDebug "Creating of 2nd order file disabled.";
+		#IF $SleepTime = 0 
+		#{
+		#	$SleepTime = 3;
+		#}
+
+		#TraceDebug "Sleeping for " & $SleepTime & " sec...";
+		
+		#SLEEP $SleepTime;
+
+		#RWT.GiveUp $SleepTime;
+
+		#Create2ndOutputFile $EdiSyntax CONFIG $Preferences;
+		
+		
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	Create2ndOutputFile
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT Create2ndOutputFile IN $EdiSyntax CONFIG IN $Preferences RECORD Preferences
+{
+	DECLARE $fileName	STRING;
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+		TraceDebug "Creating 2nd output file...";
+
+		$fileName = "ord_" & DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_FileName);
+		$fileName = $mOrderInfo.$outputPath2 & SL_FILEIO.DirectorySeparator() & $fileName & ".edi";	
+
+		CASE $EdiSyntax
+		WHEN "X12"
+		{
+			X12_WriteOrdersToFile $mOrderInfo CDATE $mCurrentDate CTIME $mCurrentTime OUTFILE $fileName;		
+		}
+		WHEN "EDIFACT"
+		{
+			EDIFACT_WriteOrdersToFile $mOrderInfo CDATE $mCurrentDate CTIME $mCurrentTime OUTFILE $fileName
+				CONFIG $Preferences;
+		}
+		WHEN OTHERS
+		{
+			LOG "Unknown Output Syntax!" TYPE "ERROR";
+		}
+
+		TraceDebug "2nd " & $EdiSyntax & " output file created.";
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	debugOrderInfoRecord
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT debugOrderInfoRecord IN $OrderInfo  RECORD OrderInfo
+{
+	TraceDebug "ControlNumber("			& $OrderInfo.$ControlNumber			& ")";
+	TraceDebug "FunctionlGrpNumber("	& $OrderInfo.$FunctionlGrpNumber	& ")";
+	TraceDebug "TransactionNumber("		& $OrderInfo.$TransactionNumber		& ")";
+	TraceDebug "PoNumber("				& $OrderInfo.$PoNumber				& ")";
+	TraceDebug "Sender("				& $OrderInfo.$Sender				& ")";
+	TraceDebug "Receiver("				& $OrderInfo.$Receiver				& ")";
+	TraceDebug "outputPath("			& $OrderInfo.$outputPath			& ")";
+	TraceDebug "InvoiceOutPath("		& $OrderInfo.$outputPath2			& ")";
+
+	FOR $i = 1 TO ARRAYSIZE($OrderInfo.$Details) 
+	{
+		TraceDebug "---Line " & $i & "-------------------------";
+		TraceDebug "CatelogNumber(" & $OrderInfo.$Details[$i].$CatelogNumber & ")"; 	
+		TraceDebug "Description(" & $OrderInfo.$Details[$i].$Description	& ")"; 
+		TraceDebug "Quantity(" & $OrderInfo.$Details[$i].$Quantity			& ")"; 
+		TraceDebug "Measure(" & $OrderInfo.$Details[$i].$Measure			& ")"; 
+		TraceDebug "Price(" & $OrderInfo.$Details[$i].$Price				& ")"; 
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	X12_WriteOrdersToFile
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT X12_WriteOrdersToFile	IN $OrderInfo	RECORD OrderInfo
+										CDATE	IN $CurrentDate
+										CTIME	IN $CurrentTime
+										OUTFILE	IN $fileName
+{
+	DECLARE $SegmentCount		INTEGER;
+	
+	TRY
+	{
+	    TraceDebug "Creating output X12 file...";
+
+		OPEN FILE OUTPUT $fileName;
+
+		# ISA*00*0000000000*00*0000000000*08*6111470100     *12*3122661739     *070803*2342*U*00401*000006088*0*P*>
+		PRINT "ISA*00*0000000000*00*0000000000" 
+				& "*" & $OrderInfo.$SenderQual & "*" & $OrderInfo.$Sender	& STRREPEAT(" ", 15 - STRLEN($OrderInfo.$Sender)) 
+				& "*" & $OrderInfo.$ReceiverQual & "*" & $OrderInfo.$Receiver & STRREPEAT(" ", 15 - STRLEN($OrderInfo.$Receiver)) 
+				& "*" & MID($CurrentDate, 3, STRLEN($CurrentDate)) & "*" & $CurrentTime & "*U*00401*"  
+				& $OrderInfo.$ControlNumber & "*0*P*>" & $EndOfLine;
+
+		# GS*PO*6111470100*3122661739*20070803*2342*1345*X*004010
+		PRINT "GS*PO*" & $OrderInfo.$Sender & "*" 
+				& $OrderInfo.$Receiver & "*" 
+				& $CurrentDate & "*" & $CurrentTime & "*" 
+				& $OrderInfo.$FunctionlGrpNumber &  "*X*004010" & $EndOfLine;
+
+		# ST*850*285800369
+		#	01 143 Transaction Set Identifier Code	M/Z ID 3/3
+		#	02 329 Transaction Set Control Number	M	AN 4/9
+		PRINT "ST*850*" & $OrderInfo.$TransactionNumber & $EndOfLine;
+
+		# BEG*00*SA*0091-8926315-0551**20070803*D
+		PRINT "BEG*00*SA*" & $OrderInfo.$PoNumber & "**" & $CurrentDate & "*D" & $EndOfLine;
+
+		PRINT "REF*IA*3680401*CALIFORNIA INNOVATIONS"				& $EndOfLine; 
+		PRINT "REF*DP*091"											& $EndOfLine; 
+		PRINT "FOB*DF*OR*AURORA      IL"							& $EndOfLine; 
+		PRINT "CSH*N"												& $EndOfLine; 
+		PRINT "ITD*01*2*****60"										& $EndOfLine; 
+
+		#DTM*037*20070805
+		PRINT "DTM*037*" & DateAdd($CurrentDate, "%Y%m%d", 2)		& $EndOfLine;
+		#DTM*038*20070810
+		PRINT "DTM*038*" & DateAdd($CurrentDate, "%Y%m%d", 7)		& $EndOfLine;
+
+		PRINT "TD5*B*92*USE READY TO SHIP WEB"						& $EndOfLine;
+		PRINT "N1*BY*EMEA DC                      0551*92*0551"	& $EndOfLine;
+		PRINT "N3*7120 HWY 65 N. E."								& $EndOfLine;
+		PRINT "N4*FRIDLEY*MN*55432*US"								& $EndOfLine;
+
+		/* Line Details */
+
+		# PO1*1*32*EA*3.75*WE*CB*091010258*VA*52350*UP*016497523502
+		# CTP*RS*RES*7.99********1
+		# PID*F*08***AZ
+		# PO4*4*************1
+
+		FOR $i = 1 TO ARRAYSIZE($OrderInfo.$Details) 
+		{
+			/*
+				01 350 Assigned Identification				O AN 1/20
+				02 330 Quantity Ordered						X R 1/15
+				03 355 Unit or Basis for Measurement Code	O ID 2/2
+				04 212 Unit Price							X R 1/17
+				05 639 Basis of Unit Price Code				O ID 2/2
+				06 235 Product/Service ID Qualifier			X ID 2/2
+				07 234 Product/Service ID					X AN 1/48
+				:
+			*/
+			PRINT "PO1*" & $i & "*" & $OrderInfo.$Details[$i].$Quantity & "*" 
+					& $OrderInfo.$Details[$i].$Measure	& "*"
+					& $OrderInfo.$Details[$i].$Price	& "*"
+					& "WE*" # WE = Wholesale Price per Each
+					& "CB*" # CB = Buyer's Catalog Number
+					& $OrderInfo.$Details[$i].$CatelogNumber 
+					& $EndOfLine;
+			
+			# RES = Resale price (Unit price times 2).
+			PRINT "CTP*RS*RES*" & FORMAT("%0.2f", $OrderInfo.$Details[$i].$Price * 2) & "********1" & $EndOfLine;
+
+			PRINT "PID*F*08***" & $OrderInfo.$Details[$i].$Description & $EndOfLine;
+			
+			PRINT "PO4*4*************1" & $EndOfLine;
+		}
+
+		#CTT*7*156
+		#PRINT "CTT*7*156"; not sure how to work out the hash. Segment is Optional.
+		
+		#SE*43*285800369
+		$SegmentCount = ARRAYSIZE($OrderInfo.$Details) * 4 + 14;
+		PRINT "SE*" & $SegmentCount & "*" & $OrderInfo.$TransactionNumber & $EndOfLine;
+
+		#GE*1*1345
+		PRINT "GE*1*" & $OrderInfo.$FunctionlGrpNumber & $EndOfLine;
+		
+		#IEA*1*000006088
+		PRINT "IEA*1*" & $OrderInfo.$ControlNumber & $EndOfLine;
+
+
+		CLOSE OUTPUT;
+
+		TraceDebug "File created.";
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	EDIFACT_WriteOrdersToFile
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT EDIFACT_WriteOrdersToFile	IN $OrderInfo	RECORD OrderInfo
+											CONFIG	IN $Preferences RECORD PREFERENCES
+											CDATE	IN $CurrentDate
+											CTIME	IN $CurrentTime
+											OUTFILE	IN $fileName
+{
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		TraceDebug "Creating output EDIFACT file...";
+
+		# TODO: Add edifact order creation.	    
+		OPEN FILE OUTPUT $fileName;
+
+		#UNB+UNOA:2+9199999000006+4911111000002::RAW PIECES DIS+090707:1541+93117+       +ORDERS'
+		PRINT "UNB+UNOA:1+" & GetUNBAddresses($Preferences) & "+" & $CurrentDate[3,8] & ":" &
+			$CurrentTime & "+" & $OrderInfo.$ControlNumber & "+       +ORDERS'";
+
+		#UNH+09311601230001+ORDERS:D:93A:UN'
+		PRINT "UNH+" & $OrderInfo.$TransactionNumber & "+ORDERS:D:93A:UN'";
+
+		#BGM+226+564118/01/AA/7099+9'
+		PRINT "BGM+220+" & $OrderInfo.$PoNumber & "+9'";
+		
+		#DTM+4:20090707:102' 4 = order date
+		PRINT "DTM+4:" & $CurrentDate & ":102'";
+
+		#64 = Delivery date/time, earliest
+		PRINT "DTM+64:" & DateAdd($CurrentDate, "%Y%m%d", 2) & ":102'";
+
+		#63 = Delivery date/time, latest
+		PRINT "DTM+63:" & DateAdd($CurrentDate, "%Y%m%d", 7) & ":102'";
+
+		#NAD+SU+142226++RAW PIECES LTD'
+		PRINT "NAD+SU+" & $OrderInfo.$Receiver & "++RAW PIECES LTD'";
+
+		#NAD+BY+142226++EMEA DC'
+		PRINT "NAD+BY+" & $OrderInfo.$Sender & "++EMEA DC'";
+
+		FOR $i = 1 TO ARRAYSIZE($OrderInfo.$Details) 
+		{
+			#LIN+++50294700005:SA'
+			PRINT "LIN+" & $i & "++" & $OrderInfo.$Details[$i].$CatelogNumber & ":SA'";
+
+			#IMD+++:::ELE TUMBLE DRYER CONDENSOR KIT'
+			PRINT "IMD+++:::" & $OrderInfo.$Details[$i].$Description & "'";
+
+			#MEA
+			#PRINT "MEA+WT+";
+
+			#QTY+21:030'
+			PRINT "QTY+21:" & $OrderInfo.$Details[$i].$Quantity & ":" & $OrderInfo.$Details[$i].$Measure & "'";
+
+			#PRI+INV:5.35:TU:NTP'
+			PRINT "PRI+INV:" & $OrderInfo.$Details[$i].$Price & ":TU:NTP:1:XX'";
+		}
+
+		PRINT "UNS+S'";
+
+		PRINT "UNT+" & FORMAT("%0.f", 9 + (ARRAYSIZE($OrderInfo.$Details) * 4)) & "+" & $OrderInfo.$TransactionNumber & "'";
+
+		PRINT "UNZ+1+" & $OrderInfo.$ControlNumber & "'\n";
+
+		CLOSE OUTPUT;
+
+		TraceDebug "EDIFACT Orders File created.";
+		
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateEdiPayment
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT CreateEdiPayment	IN $OrderInfo	RECORD OrderInfo
+								PAYMENT		IN $payment		RECORD PAYMENT
+								CONFIG		IN $Preferences RECORD PREFERENCES
+{
+	TRY
+	{
+	    IF $Preferences.$CreateEdifact
+		{
+			CreateEdifactPayment $OrderInfo
+						PAYMENT $payment	
+						CONFIG	$Preferences;
+		}
+		
+		IF $Preferences.$CreateX12
+		{	
+			CreateX12Payment $OrderInfo
+						PAYMENT $payment	
+						CONFIG	$Preferences;
+		}
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " :Failed to create Payment message: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateX12Payment
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT CreateX12Payment	IN $OrderInfo	RECORD OrderInfo
+								PAYMENT		IN $payment		RECORD PAYMENT
+								CONFIG		IN $Preferences RECORD PREFERENCES
+{
+	DECLARE $CurrentDate	STRING;
+	DECLARE $CurrentTime	STRING;
+	DECLARE $filename		STRING;
+	DECLARE $sum			FLOAT;
+
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		$CurrentDate = DATE(CURRENTDATE(), "%Y%m%d");
+		$CurrentTime = DATE(CURRENTDATE(), "%H%M");
+
+		$fileName = "pay_" & DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_FileName);
+		$fileName = $payment.$outputPath & SL_FILEIO.DirectorySeparator() & $fileName & ".edi";
+
+		OPEN FILE OUTPUT $fileName;
+		
+		PRINT "ISA*00*0000000000*00*0000000000" 
+				& "*" & $OrderInfo.$SenderQual & "*" & $OrderInfo.$Sender	& STRREPEAT(" ", 15 - STRLEN($OrderInfo.$Sender)) 
+				& "*" & $OrderInfo.$ReceiverQual & "*" & $OrderInfo.$Receiver & STRREPEAT(" ", 15 - STRLEN($OrderInfo.$Receiver)) 
+				& "*" & MID($CurrentDate, 3, STRLEN($CurrentDate)) & "*" & $CurrentTime & "*U*00401*"  
+				& $payment.$ControlNumber & "*0*P*>" & $EndOfLine;
+
+		PRINT "GS*PO*" & $OrderInfo.$Sender & "*" 
+				& $OrderInfo.$Receiver & "*" 
+				& $CurrentDate & "*" & $CurrentTime & "*" 
+				& $payment.$FunctionlGrpNum &  "*X*004010" & $EndOfLine;
+
+		PRINT "ST*820*" & $payment.$TransactionNum & $EndOfLine;
+
+		PRINT "BPR*I*" & $payment.$PayTotal & "*C*CHK" & $EndOfLine;
+
+		PRINT "TRN*3*00000018" & $EndOfLine;
+
+		PRINT "CUR*PR*USD" & $EndOfLine;
+
+		PRINT "N1*PR*EMEA DC                     0551*92*0551" & $EndOfLine;
+
+		PRINT "ENT*1" & $EndOfLine;
+
+		PRINT "RMR*IV*" & $payment.$PayNumber & "*PO*" & $payment.$PayTotal & $EndOfLine;
+
+		PRINT "REF*PO*" & $payment.$PONumber & $EndOfLine;
+
+		PRINT "SE*9*" & $payment.$TransactionNum & $EndOfLine;
+
+		PRINT "GE*1*" & $payment.$FunctionlGrpNum & $EndOfLine;
+
+		PRINT "IEA*1*" & $payment.$ControlNumber & $EndOfLine;
+
+		CLOSE OUTPUT;
+
+		TraceDebug "X12 payment file created!";
+		
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Faild to write X12 Payment file: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateEdifactPayment
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT CreateEdifactPayment	IN $OrderInfo	RECORD OrderInfo
+									PAYMENT		IN $payment		RECORD PAYMENT
+									CONFIG		IN $Preferences RECORD PREFERENCES
+{
+	DECLARE $CurrentDate	STRING;
+	DECLARE $CurrentTime	STRING;
+	DECLARE $filename		STRING;
+	
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		$CurrentDate = DATE(CURRENTDATE(), "%Y%m%d");
+		$CurrentTime = DATE(CURRENTDATE(), "%H%M");
+
+		$fileName = "pay_" & DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_FileName);
+		$fileName = $payment.$outputPath & SL_FILEIO.DirectorySeparator() & $fileName & ".edi";
+
+		OPEN FILE OUTPUT $fileName;
+	    
+		#UNB
+		PRINT "UNB+UNOA:1+" & GetUNBAddresses($Preferences) & "+" & $CurrentDate[3,8] & ":" &
+			$CurrentTime & "+" & $payment.$ControlNumber & "+       +REMADV'";
+
+		#UNH
+		PRINT "UNH+" & $payment.$TransactionNum & "+REMADV:D:93A:UN'";
+
+		#BGM+481 = Remittance advice
+		PRINT "BGM+481+" & $payment.$PayNumber & "+9'";
+		
+		#DTM
+		PRINT "DTM+4:" & $CurrentDate & ":102'";
+
+		#RFF
+		PRINT "RFF+ON" & $payment.$PONumber & "'";
+
+		#FII
+		PRINT "FII+BY+123456789:EMEA DC'";
+		
+		#PAI
+		PRINT "PAI+1:10:31'";
+
+		#UNS
+		PRINT "UNS+S'";
+
+		#MOA
+		PRINT "MOA+11:" & $payment.$PayTotal & "'";
+
+		#UNT
+		PRINT "UNT+9+" & $payment.$TransactionNum  & "'";
+
+		#UNZ
+		PRINT "UNZ+1+" & $payment.$ControlNumber & "'\n";
+
+		CLOSE OUTPUT;
+
+		TraceDebug "EDIFACT Payment File created.";
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Faild to write Edifact Payment file: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	GetUNBAddresses
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE FUNCTION GetUNBAddresses($Preferences RECORD PREFERENCES)
+{
+	DECLARE $str	STRING;
+	TRY
+	{
+	    $str = $Preferences.$Edifact.$SenderId;
+		
+		IF $Preferences.$Edifact.$SenderQual <> "" 
+		{
+			$str = $str & ":" & $Preferences.$Edifact.$SenderQual;
+		}
+		ELSE 
+		{
+			$str = $str & ":";
+		}
+		
+		IF $Preferences.$Edifact.$SenderInternalId <> "" 
+		{
+			$str = $str & ":" & $Preferences.$Edifact.$SenderInternalId; 
+		}
+		ELSE 
+		{
+			$str = $str & ":";
+		}
+
+		IF $Preferences.$Edifact.$SenderInternalSubId <> "" 
+		{
+			$str = $str & ":" & $Preferences.$Edifact.$SenderInternalSubId;
+		}
+		ELSE 
+		{
+			$str = $str & ":";
+		}
+		
+		$str = TRIMRIGHT($str, ":");
+
+
+		$str = $str & "+" & $Preferences.$Edifact.$ReceiverId;
+
+		IF $Preferences.$Edifact.$ReceiverQual <> "" 
+		{
+			$str = $str & ":" & $Preferences.$Edifact.$ReceiverQual;
+		}
+		ELSE 
+		{
+			$str = $str & ":";
+		}
+
+		IF $Preferences.$Edifact.$ReceiverInternalId <> "" 
+		{
+			$str = $str & ":" & $Preferences.$Edifact.$ReceiverInternalId; 
+		}
+		ELSE 
+		{
+			$str = $str & ":";
+		}
+
+		IF $Preferences.$Edifact.$ReceiverInternalSubId <> "" 
+		{
+			$str = $str & ":" & $Preferences.$Edifact.$ReceiverInternalSubId;
+		}
+		ELSE 
+		{
+			$str = $str & ":";
+		}
+
+		$str = TRIMRIGHT($str, ":");
+
+		TraceDebug "UNB Address(" & $str & ")";
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN $str;
+}
+
+
+
+
+
+#---Date Util -------------------------------------------------------------------------------------------------------------------
+
+/*****************************************************************************
+** NAME         : DateConvert
+** DESCRIPTION  : The date string is of format "informat". It
+**                is converted to format "outformat" and the
+**                resulting string is returned.
+**                If the format is illegal a "DMU" exception
+**                is thrown.
+** INPUT        : "strdate" is a string containing a date.
+**                "informat" and "outformat describes format
+**                of the supplied/returned datestring.
+**===========================================================================*/
+
+DECLARE PUBLIC FUNCTION DateConvert($strdate, $informat, $outformat)
+{
+    DECLARE $datestr STRING;
+
+    $error = 0;
+
+    TRY {
+        NOLOG {
+           $datestr = DATE(Y2KDateVariable( $informat, $strdate), $outformat);
+        }
+    }
+    CATCH $exception
+    WHEN others {
+        LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Couldn't convert date "&
+             $strdate & " according to format "& $informat;
+    }
+
+    RETURN $datestr;
+
+} #END DateConvert
+
+/*****************************************************************************
+** NAME         : DateAdd
+** DESCRIPTION  : The date string is of format "informat". It
+**                is increased with the specified number of days, hours,
+**                minutes and seconds.
+**                The resulting date is returned.
+**                If the format is illegal a "DMU" exception
+**                is thrown.
+** INPUT        : "strdate" is a string containing a date.
+**                "format" describes format
+**                of the supplied/returned datestring.
+**===========================================================================*/
+
+DECLARE PUBLIC FUNCTION DateAdd($strdate, $format, $days=0, $hours=0, $minutes=0, $seconds=0)
+{
+    declare $ddate DATE;
+    declare $int_date INTEGER;
+
+    $error = 0;
+
+    TRY {
+        NOLOG {
+           $ddate = Y2KDateVariable( $format, $strdate);
+        }
+    }
+    CATCH $exception
+    WHEN others 
+	{
+        LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Couldn't convert date "& $strdate & " according to format "& $format;
+    }
+
+    $int_date=$ddate;
+
+    $int_date=$int_date+$seconds+60*($minutes+60*($hours+24*$days));
+
+    $ddate=$int_date;
+    RETURN DATE($ddate, $format);
+
+} #END DateAdd
+
+
+/*****************************************************************************
+** NAME         : Y2KDateVariable
+** DESCRIPTION  : The Y2KDateVariable function returns a date variable value
+**                for a date string of a specified format.
+**                If only a two-digit year is used, this is expanded to 20xx
+**                for xx less then 70.
+** INPUT        : "format" describes format of the returned datestring.
+**                "dstring" is a string with a date of format "format".
+**===========================================================================*/
+
+DECLARE PUBLIC FUNCTION Y2KDateVariable($format, $dstring) {
+      DECLARE $pos INTEGER;  # position before two digit year in $dstring
+      DECLARE $ypos INTEGER; # position of %y in $format
+      DECLARE $c STRING;
+      DECLARE $percentflag INTEGER;
+      DECLARE $backflag INTEGER; # read reversed
+      DECLARE $end INTEGER;
+      DECLARE $newformat STRING;
+      DECLARE $newdstring STRING;
+      DECLARE $savedformat STRING;
+      DECLARE $returndate DATE;
+
+      /*
+         If there is no two-digit year (%y), just evaluate and return.
+      */
+      IF STRFORWARD($format,"%y")=0 { # there is no two-digit year
+         $savedformat=$DateFormat;
+         $DateFormat=$format;
+         $returndate=$dstring;
+         $DateFormat=$savedformat;
+         RETURN $returndate;
+      }
+
+      /*
+         Parse format string until %y is found.
+      */
+      FOR $j=1 TO STRLEN($format) {
+         $c=STRMID($format,$j,$j);
+
+         IF $percentflag  {
+             CASE $c
+             WHEN "%" { $pos=$pos+1; }
+             WHEN "a" { $pos=$pos+3; }
+             WHEN "b" { $pos=$pos+3; }
+             WHEN "d" { $pos=$pos+2; }
+             WHEN "e" { $pos=$pos+2; }
+             WHEN "H" { $pos=$pos+2; }
+             WHEN "I" { $pos=$pos+2; }
+             WHEN "j" { $pos=$pos+3; }
+             WHEN "m" { $pos=$pos+2; }
+             WHEN "M" { $pos=$pos+2; }
+             WHEN "p" { $pos=$pos+2; }
+             WHEN "s" { $pos=$pos+2; }
+             WHEN "S" { $pos=$pos+2; }
+             WHEN "U" { $pos=$pos+2; }
+             WHEN "w" { $pos=$pos+2; }
+             WHEN "W" { $pos=$pos+2; }
+             WHEN "Y" { $pos=$pos+4; }
+
+             WHEN "y" {
+                $ypos=$j;
+                   IF $backflag>0 {  # one or more non-fixed strings found
+                      $backflag=1;
+                      $pos=0;
+                   }
+                   ELSE {
+                      BREAK;
+                   }
+              }
+              WHEN OTHERS {  # a non-fixed string (e.g. weekday name)
+                   $backflag=$backflag+1;
+              }
+              $percentflag=0;
+           }
+           ELSE IF $c="%" { # next one is a special date format identifier
+               $percentflag=1;
+           }
+           ELSE { # just an ordinary character
+               $pos=$pos+1;
+           }
+        }
+        /*
+           The position of two-digit year is determined.
+           Replace with 4-digit year.
+        */
+        $end=STRLEN($dstring);
+
+        IF $backflag=0 { # pos is position from start
+            $newdstring=STRMID($dstring, $pos+1, $pos+2);
+            IF $newdstring<70 {
+               $newdstring="20" & $newdstring;
+            }
+            ELSE {
+               $newdstring="19" & $newdstring;
+            }
+            IF $pos=0 { # starting with %y
+               $newdstring= $newdstring & STRMID($dstring, 3, $end);
+            }
+            ELSE IF $end=$pos+2 { # ending with %y
+               $newdstring= STRMID($dstring, 1, $pos) & $newdstring;
+            }
+            ELSE { # %y in the middle
+               $newdstring= STRMID($dstring, 1, $pos) & $newdstring & STRMID($dstring, $pos+3, $end);
+            }
+        }
+        ELSE IF  $backflag=1 { # pos is position from end
+            $newdstring=STRMID($dstring, $end-$pos-1, $end-$pos);
+            IF $newdstring<70 {
+               $newdstring="20" & $newdstring;
+            }
+            ELSE {
+               $newdstring="19" & $newdstring;
+            }
+            IF $pos=0 {
+               $newdstring= STRMID($dstring, 1, $end-2) & $newdstring;
+            }
+            ELSE {
+               $newdstring= STRMID($dstring, 1, $end-$pos-2) &
+                            $newdstring &
+                            STRMID($dstring, $end-$pos+1, $end);
+            }
+        }
+        ELSE {
+            THROW "DMU" ;
+        }
+        /*
+          Replace %y with %Y in format string.
+        */
+        $newformat=STRMID($format,1,$ypos-1) & "Y";
+        IF $ypos<STRLEN($format) {
+            $newformat=$newformat & STRMID($format, $ypos+1, STRLEN($format));
+        }
+
+       /*
+          Evaluate new date string with new format string.
+        */
+        $savedformat=$DateFormat;
+        $DateFormat=$newformat;
+        $returndate=$newdstring;
+        $DateFormat=$savedformat;
+
+        RETURN $returndate;
+} #END Y2KDateVariable 
+
+/*---------------------------------------------------------------------------------------
+@NAME	mid
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Mid($str,$n,$m)
+{
+    declare $i integer;
+    declare $num integer;
+    declare $ntmp integer;
+    declare $mtmp integer;
+    declare $retstr string;
+    
+    $retstr = "";
+    $num = STRLEN($str);
+    $ntmp = $n;
+    $mtmp = $m;
+    
+    if $ntmp<1 {$ntmp=1;}
+    if $mtmp>$num {$mtmp=$num;}
+    if $ntmp>$mtmp {return $retstr;}
+
+    $retstr = STRMID($str,$ntmp,$mtmp);
+
+    return $retstr;
+} 
+
+
+/*--------------------------------------------------------------------
+ * MODULE_CLEAN
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_CLEAN
+{
+	
+	RETURN;
+}
+
+} # End Module

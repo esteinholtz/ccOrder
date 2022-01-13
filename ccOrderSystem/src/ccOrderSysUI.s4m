@@ -1,0 +1,537 @@
+/* Message Builder source file
+ *	File: ccOrderSysUI.s4m
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:			Description:
+ *	----------	-------		-------			------------
+ *	07-04-2009	1.0.0		Mohib Miah      Inital version
+ *
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h"				once;
+include "sysinfo.s4h"			once;
+include "ccOrderSys.s4h"		once;
+
+DECLARE MODULE ccOrderSysUI  {
+
+DECLARE $mDebug = 0	INTEGER;
+
+/*--------------------------------------------------------------------
+ * Version
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Version() 
+{
+	RETURN SOURCEMODULE() & " Version 1.0.0";
+}
+
+/*--------------------------------------------------------------------
+ * MODULE_INIT
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_INIT 
+{
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT SetSystemInfo
+{
+	DECLARE $SystemRoot	STRING;
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+	
+		CASE System()
+		WHEN $system_Posix
+		{
+			$SystemRoot = "/";
+		}
+		WHEN $system_Win32 
+		{
+			$SystemRoot = "c:";
+		}
+		WHEN OTHERS
+		{
+			LOG "System Not Supported" TYPE "WARNING";
+		}
+
+		IMPORT "CORE_ROOT"	INTO $CoreRoot;
+		IMPORT "CORE_DATA"	INTO $CoreData;
+		IMPORT "CORE_LOCAL" INTO $CoreLocal;
+
+		$gRootFolders[1].$name = $SystemRoot;
+		$gRootFolders[1].$path = $SystemRoot;
+		$gRootFolders[2].$name = "D:";
+		$gRootFolders[2].$path = "D:";
+		$gRootFolders[3].$name = "${CORE_ROOT}";
+		$gRootFolders[3].$path = $CoreRoot;
+		$gRootFolders[4].$name = "${CORE_DATA}";
+		$gRootFolders[4].$path = $CoreData;
+		$gRootFolders[5].$name = "${CORE_LOCAL}";
+		$gRootFolders[5].$path = $CoreLocal;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & ": Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	Construct
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT Construct
+{
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+	    RWT.Application "ccOrderSystem" TITLE "CC Order System" WIDTH 500 ICONNAME "Network" #HEIGHT 700 
+			OBJECT $Application;
+
+		# Menu Bar
+		RWT.Menu $Application TEXT "File" OBJECT $FileMenu;
+		RWT.MenuButton		$FileMenu TEXT "New" ACCELERATORTEXT "Ctrl+N" OBJECT $FileMenuNew;
+		RWT.MenuButton		$FileMenu TEXT "Save" ACCELERATORTEXT "Ctrl+S" OBJECT $FileMenuSave;
+		RWT.MenuSeparator	$FileMenu;
+		RWT.MenuButton		$FileMenu TEXT "Exit" OBJECT $FileMenuExit;
+
+		RWT.Menu $Application TEXT "Edit" OBJECT $EditMenu;
+		RWT.MenuButton		$EditMenu TEXT "Add line"	ACCELERATORTEXT "Ctrl+L" OBJECT $EditMenuAddLine;
+		RWT.MenuButton		$EditMenu TEXT "Edit line"	ACCELERATORTEXT "Ctrl+E" OBJECT $EditMenuEditLine;
+		RWT.MenuSeparator	$EditMenu;
+		RWT.MenuButton		$EditMenu TEXT "Delete line" ACCELERATORTEXT "Ctrl+D" OBJECT $EditMenuDeleteLine;
+		RWT.MenuSeparator	$EditMenu;
+		RWT.MenuButton		$EditMenu TEXT "Generate"	ACCELERATORTEXT "Ctrl+G" OBJECT $EditMenuGenerate;
+		RWT.MenuSeparator	$EditMenu;
+		RWT.MenuButton		$EditMenu TEXT "Preferences" OBJECT $EditMenuPreferences;
+		
+		RWT.Menu $Application TEXT "View" OBJECT $ViewMenu;
+		RWT.MenuButton		$ViewMenu TEXT "View Response window" OBJECT $ViewMenuResponseWindow;
+
+		
+		RWT.Menu $Application TEXT "Help" OBJECT $HelpMenu;
+		RWT.MenuButton		$HelpMenu TEXT "About" OBJECT $HelpMenuAbout;
+
+		# Window Main Panel
+		RWT.Panel $Application LAYOUT RWT.$vertical MARGINWIDTH	10 MARGINHEIGHT 0 HALIGN RWT.$true 
+			OBJECT $MainPanel;
+		
+		RWT.Separator $MainPanel WIDTH 500;
+
+		RWT.Picture $MainPanel BITMAPNAME "b2bi_banner" HANCHOR RWT.$false;#TRANSPARENT RWT.$true;    
+		
+		# ------Status Panel
+		RWT.Panel $MainPanel FRAME RWT.$true TITLE "Status" 
+			MARGINWIDTH 10 MARGINHEIGHT 10 LAYOUT RWT.$Horizontal RESIZE RWT.$false OBJECT $StatusPanel;
+
+		RWT.Picture $StatusPanel BITMAPLIB RWT.$bitmapLib_16x16 BITMAPNAME  "event_info_g16"                            
+			OBJECT $StatusPanelPicture;
+		RWT.Label $StatusPanel TEXT "testing.." OBJECT $StatusPanelLabel;
+
+		   
+		# ------Order Panel	
+		RWT.Panel $MainPanel FRAME RWT.$true TITLE "Order Information" 
+			MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $OrderPanel;
+		
+		RWT.Label $OrderPanel TEXT "Control Number" VDISTANCE 5;
+		RWT.TextField $OrderPanel HDISTANCE 100 COLUMNS 20 OBJECT $ControlNumberTextField;
+
+		RWT.Label $OrderPanel TEXT "Functionl Group Number" VDISTANCE 5 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $OrderPanel HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $FunctionlGrpNumTextField;
+
+		RWT.Label $OrderPanel TEXT "Transaction Number" VDISTANCE 35;
+		RWT.TextField $OrderPanel VDISTANCE 30 HDISTANCE 100 COLUMNS 20 OBJECT $TransactionNumTextField;
+
+		RWT.Label $OrderPanel TEXT "Purchase Order Number" VDISTANCE 35 HDISTANCE 270 HANCHOR RWT.$false;
+		RWT.TextField $OrderPanel VDISTANCE 30 HDISTANCE 400 COLUMNS 20 HANCHOR RWT.$false OBJECT $PoNumberTextField;
+
+
+
+		# Popup menu for ColumnList
+		RWT.PopupMenu "Menu" OBJECT $ColumnListMenu;
+		RWT.MenuButton $ColumnListMenu TEXT	"Edit" ACCELERATORTEXT "Ctrl+E"		OBJECT $PopUpMenuEdit;
+		RWT.MenuButton $ColumnListMenu TEXT	"Add" ACCELERATORTEXT "Ctrl+L"		OBJECT $PopUpMenuAdd;
+		RWT.MenuSeparator $ColumnListMenu;
+		RWT.MenuButton $ColumnListMenu TEXT	"Generate" ACCELERATORTEXT "Ctrl+G" OBJECT $PopUpMenuGenerate;
+		RWT.MenuSeparator $ColumnListMenu;
+		RWT.MenuButton $ColumnListMenu TEXT	"Delete" ACCELERATORTEXT "Ctrl+D"	OBJECT $PopUpMenuDelete;
+
+		RWT.ColumnList $OrderPanel WIDTH 500 HEIGHT 200 COLUMNS 6 VDISTANCE 60               
+			HEADERTEXT "Line\tCatalog Number\tDescription\tQty\tMeasure\tPrice"                
+			POPUPMENU $ColumnListMenu OBJECT $ColumnList;
+
+		RWT.Button $OrderPanel TEXT "New" WIDTH 70		VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 270 HDISTANCE 0   OBJECT $NewButton;
+		RWT.Button $OrderPanel TEXT "Add Line" WIDTH 70 VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 270 HDISTANCE 80  OBJECT $AddLineButton;
+		RWT.Button $OrderPanel TEXT "Generate" WIDTH 70 VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 270 HDISTANCE 160 OBJECT $GenerateButton;
+		RWT.Button $OrderPanel TEXT "Save" WIDTH 70		VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 270 HDISTANCE 240 OBJECT $SaveButton;
+		RWT.Button $OrderPanel TEXT "Exit" WIDTH 70		VANCHOR RWT.$false HANCHOR RWT.$false VDISTANCE 270 HDISTANCE 320 OBJECT $ExitButton;
+
+		#----- Add Line dialog --------------------------------------------------------------------------------------------------------
+		RWT.Dialog $Application TITLE "Line information" BUTTONS RWT.$ok + RWT.$cancel OBJECT $LineDialog;
+		RWT.Panel $LineDialog FRAME RWT.$true TITLE "Enter line details"           
+		      MARGINWIDTH 10  MARGINHEIGHT 10 OBJECT $LineDialogPanel;
+
+		RWT.Picture $LineDialogPanel BITMAPNAME  "SynchronyGears";    
+		
+		RWT.Label $LineDialogPanel TEXT "Catalog Number" VDISTANCE 5 HDISTANCE 120; 
+		RWT.TextField $LineDialogPanel HDISTANCE 220 COLUMNS 30 OBJECT $CatelogNumberTextField;
+
+		RWT.Label $LineDialogPanel TEXT "Description" VDISTANCE 35 HDISTANCE 120; 
+		RWT.TextField $LineDialogPanel HDISTANCE 220 VDISTANCE 30 COLUMNS 30 OBJECT $DescriptionTextField;
+
+		RWT.Label $LineDialogPanel TEXT "Quantity" VDISTANCE 65 HDISTANCE 120; 
+		RWT.TextField $LineDialogPanel HDISTANCE 220 VDISTANCE 60 COLUMNS 30 OBJECT $QuantityTextField;
+
+		RWT.Label $LineDialogPanel TEXT "Measure" VDISTANCE 95 HDISTANCE 120; 
+		RWT.TextField $LineDialogPanel HDISTANCE 220 VDISTANCE 90 COLUMNS 30 OBJECT $MeasureTextField;
+
+		RWT.Label $LineDialogPanel TEXT "Price" VDISTANCE 125 HDISTANCE 120; 
+		RWT.TextField $LineDialogPanel HDISTANCE 220 VDISTANCE 120 COLUMNS 30 OBJECT $PriceTextField;
+
+		RWT.Button $LineDialogPanel TEXT "Generate" VDISTANCE 150 HDISTANCE 220 WIDTH 70         
+			TOOLTIP	 "Auto fill in line information" OBJECT $LineDialogGenerateButton;
+		   
+
+		# PreferencesWindow ------------------------------------------------------------------------------------------------
+		RWT.Dialog $Application TITLE "Preferences" BUTTONS RWT.$ok + RWT.$cancel OBJECT $PreferencesWindow;
+		RWT.Panel $PreferencesWindow FRAME RWT.$true MARGINWIDTH 10  MARGINHEIGHT 10 OBJECT $PreferencesWindowPanel;
+
+		RWT.Tab $PreferencesWindowPanel OBJECT $PreferencesWindowTab  BITMAPLIB RWT.$bitmapLib_16x16;
+		
+		# PreferencesWindow - X12 Addresses Tab -------------------------
+		RWT.TabItem $PreferencesWindowTab TITLE "X12 Addresses" #BITMAPNAME  "task_started_w16"        
+		   OBJECT $AddressesTabItem;
+		RWT.Panel $AddressesTabItem FRAME RWT.$false MARGINWIDTH 10  MARGINHEIGHT 10 OBJECT $AddressesTabItemPanel;
+
+			RWT.Picture		$AddressesTabItemPanel BITMAPNAME  "SynchronyBusiness";
+
+			RWT.Label		$AddressesTabItemPanel TEXT "Sender Id Qualifier (Max 2)" VDISTANCE 5 HDISTANCE 160; 
+			RWT.TextField 	$AddressesTabItemPanel HDISTANCE 320 COLUMNS 3 MAXLENGTH 2 OBJECT $SenderIdQualTextField;
+
+			RWT.Label		$AddressesTabItemPanel TEXT "Sender Id   (Max 15)" VDISTANCE 35 HDISTANCE 160; 
+			RWT.TextField	$AddressesTabItemPanel HDISTANCE 320 VDISTANCE 30 COLUMNS 20 MAXLENGTH 15 OBJECT $SenderIdTextField;
+
+			RWT.Label		$AddressesTabItemPanel TEXT "Receiver Id Qualifier (Max 2)" VDISTANCE 65 HDISTANCE 160; 
+			RWT.TextField	$AddressesTabItemPanel HDISTANCE 320 VDISTANCE 60 COLUMNS 3 MAXLENGTH 2 OBJECT $ReceiverIdQualTextField;
+
+			RWT.Label		$AddressesTabItemPanel TEXT "Receiver Id (Max 15)" VDISTANCE 95 HDISTANCE 160; 
+			RWT.TextField	$AddressesTabItemPanel HDISTANCE 320 VDISTANCE 90 COLUMNS 20 MAXLENGTH 15 OBJECT $ReceiverIdTextField;
+
+			RWT.Picture $AddressesTabItemPanel BITMAPNAME  "axway_logo" HDISTANCE 400 VDISTANCE 220 TRANSPARENT RWT.$true;
+
+
+		# PreferencesWindow - Edifact Addresses Tab ---------------
+		RWT.TabItem $PreferencesWindowTab TITLE "EDIFACT Addresses" #BITMAPNAME  "task_started_w16"        
+		   OBJECT $EdifactAddTabItem;
+		RWT.Panel $EdifactAddTabItem FRAME RWT.$false MARGINWIDTH 10  MARGINHEIGHT 10 OBJECT $EdifactAddTabItemPanel;
+
+			RWT.Picture		$EdifactAddTabItemPanel BITMAPNAME  "SynchronyBusinessEdifact";
+			
+			# Sender
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Sender Id (M an..35)" VDISTANCE 5 HDISTANCE 160; 
+			RWT.TextField 	$EdifactAddTabItemPanel HDISTANCE 350 COLUMNS 40 MAXLENGTH 35 OBJECT $EdifactSenderIdTextField;
+
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Id Qualifier (C an..4)" VDISTANCE 35 HDISTANCE 160; 
+			RWT.TextField	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 30 COLUMNS 5 MAXLENGTH 4 OBJECT $EdifactSenderIdQualTextField;
+
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Sender Internal Id (C an..35)" VDISTANCE 65 HDISTANCE 160; 
+			RWT.TextField	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 60 COLUMNS 40 MAXLENGTH 35 OBJECT $EdifactSenderInternalTextField;
+
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Sender Internal Sub Id (C an..35)" VDISTANCE 95 HDISTANCE 160; 
+			RWT.TextField	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 90 COLUMNS 40 MAXLENGTH 35 OBJECT $EdifactSenderInternalSubTextField;
+
+			RWT.Separator   $EdifactAddTabItemPanel HDISTANCE 160 VDISTANCE 125 WIDTH 400;           
+			   
+			# Recipient
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Recipient Id (M an..35)" VDISTANCE 145 HDISTANCE 160; 
+			RWT.TextField 	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 140 COLUMNS 40 MAXLENGTH 35 OBJECT $EdifactReceiverIdTextField;
+
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Id Qualifier (C an..4)" VDISTANCE 175 HDISTANCE 160; 
+			RWT.TextField	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 170 COLUMNS 5 MAXLENGTH 4 OBJECT $EdifactReceiverIdQualTextField;
+
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Recipient Internal Id (C an..35)" VDISTANCE 205 HDISTANCE 160; 
+			RWT.TextField	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 200 COLUMNS 40 MAXLENGTH 35 OBJECT $EdifactReceiverInternalTextField;
+
+			RWT.Label		$EdifactAddTabItemPanel TEXT "Recipient Internal Sub Id (C an..35)" VDISTANCE 235 HDISTANCE 160; 
+			RWT.TextField	$EdifactAddTabItemPanel HDISTANCE 350 VDISTANCE 230 COLUMNS 40 MAXLENGTH 35 OBJECT $EdifactReceiverInternalSubTextField;
+
+			#RWT.Picture $EdifactAddTabItemPanel BITMAPNAME  "axway_logo" HDISTANCE 400 VDISTANCE 220 TRANSPARENT RWT.$true;
+
+		# PreferencesWindow - Output Tab  -----------------------------
+		RWT.TabItem $PreferencesWindowTab TITLE "Output   " OBJECT $OutputTabItem;
+		RWT.Panel $OutputTabItem FRAME RWT.$false MARGINWIDTH 10  MARGINHEIGHT 10 OBJECT $OutputTabItemPanel;
+
+			RWT.Picture		$OutputTabItemPanel BITMAPNAME  "SynchronyGartner";
+		
+			RWT.Label		$OutputTabItemPanel TEXT "Order output directory" VDISTANCE 5 HDISTANCE 160; 
+			RWT.TextField	$OutputTabItemPanel HDISTANCE 290 VDISTANCE 0 COLUMNS 50 OBJECT $OutputDirectoryTextField;
+			RWT.Button		$OutputTabItemPanel  BITMAPLIB RWT.$bitmapLib_16x16 BITMAPNAME "folder_g16"           
+							HDISTANCE 560 VDISTANCE 0 OBJECT $OutputDirectoryBrowseButton;
+
+			#RWT.Label		$OutputTabItemPanel TEXT "Order output directory 2" VDISTANCE 35 HDISTANCE 160; 
+			#RWT.TextField	$OutputTabItemPanel HDISTANCE 290 VDISTANCE 30 COLUMNS 50 OBJECT $OutputDirectory2TextField;
+
+			RWT.Label		$OutputTabItemPanel TEXT "ASN output directory" VDISTANCE 35 HDISTANCE 160; 
+			RWT.TextField	$OutputTabItemPanel HDISTANCE 290 VDISTANCE 30 COLUMNS 50 OBJECT $AsnOutputDirTextField;
+			RWT.Button		$OutputTabItemPanel  BITMAPLIB RWT.$bitmapLib_16x16 BITMAPNAME "folder_g16"           
+							HDISTANCE 560 VDISTANCE 30 OBJECT $AsnOutputDirBrowseButton;
+
+			RWT.Label		$OutputTabItemPanel TEXT "Invoice output directory" VDISTANCE 65 HDISTANCE 160; 
+			RWT.TextField	$OutputTabItemPanel HDISTANCE 290 VDISTANCE 60 COLUMNS 50 OBJECT $InvoiceOutputDirTextField;
+			RWT.Button		$OutputTabItemPanel  BITMAPLIB RWT.$bitmapLib_16x16 BITMAPNAME "folder_g16"           
+							HDISTANCE 560 VDISTANCE 60 OBJECT $InvoiceOutputDirBrowseButton;
+
+			RWT.Label		$OutputTabItemPanel TEXT "Payment output directory" VDISTANCE 95 HDISTANCE 160; 
+			RWT.TextField	$OutputTabItemPanel HDISTANCE 290 VDISTANCE 90 COLUMNS 50 OBJECT $PaymentOutputDirTextField;
+			RWT.Button		$OutputTabItemPanel  BITMAPLIB RWT.$bitmapLib_16x16 BITMAPNAME "folder_g16"           
+							HDISTANCE 560 VDISTANCE 90 OBJECT $PaymentOutputDirBrowseButton;
+
+			#RWT.Separator   $OutputTabItemPanel HDISTANCE 160 VDISTANCE 155 WIDTH 400;
+
+			RWT.Picture $OutputTabItemPanel BITMAPNAME  "axway_logo" HDISTANCE 400 VDISTANCE 220 TRANSPARENT RWT.$true;
+
+
+		# PreferencesWindow - Configuration Tab -----------------------
+		RWT.TabItem $PreferencesWindowTab TITLE "Configuration" #BITMAPNAME "process_w16"        
+		   OBJECT $ConfigurationTabItem;
+		RWT.Panel $ConfigurationTabItem FRAME RWT.$false MARGINWIDTH 10  MARGINHEIGHT 10 OBJECT $ConfigurationTabItemPanel;
+
+			RWT.Picture		$ConfigurationTabItemPanel BITMAPNAME  "SynchronyGartner";
+
+			RWT.Label		$ConfigurationTabItemPanel TEXT "UniqueId file path" VDISTANCE 5 HDISTANCE 160; 
+			RWT.TextField	$ConfigurationTabItemPanel HDISTANCE 290 VDISTANCE 0 COLUMNS 50 OBJECT $UniqueIdPathTextField;
+			
+			RWT.Label		$ConfigurationTabItemPanel TEXT "EDI output type" VDISTANCE 45 HDISTANCE 160; 
+
+			RWT.ToggleBox $ConfigurationTabItemPanel VDISTANCE 35 HDISTANCE 290 ORIENTATION RWT.$horizontal OBJECT $OutputTypeToggleBox;
+
+			RWT.ToggleButton $OutputTypeToggleBox TEXT "X12"				
+				TOOLTIP "Output order and payment file in X12 format"	OBJECT $CreateX12ToggleButton;
+			
+			RWT.ToggleButton $OutputTypeToggleBox TEXT "EDIFACT"			
+				TOOLTIP "Output order and payment file in Edifact format" OBJECT $CreateEdifactToggleButton;
+			
+			#---
+
+			RWT.ToggleBox   $ConfigurationTabItemPanel HDISTANCE 160 VDISTANCE 70 TYPE RWT.$checkBox OBJECT $ToggleBox;
+			RWT.ToggleButton $ToggleBox TEXT "Debug application"		
+				TOOLTIP "Output debug infomation to console" OBJECT $DebugToggleButton;
+
+			RWT.ToggleButton $ToggleBox TEXT "Check EDI field length"	
+				TOOLTIP "Check EDI field length before creating files" OBJECT $CheckEdiToggleButton;
+			
+			RWT.ToggleButton $ToggleBox TEXT "Popup Response window"	
+				TOOLTIP "Popup Response (ASN, Invoice, Payment) window for editing" OBJECT $PopupResponseToggleButton;
+
+			RWT.Picture $ConfigurationTabItemPanel BITMAPNAME  "axway_logo" HDISTANCE 400 VDISTANCE 220 TRANSPARENT RWT.$true;
+
+
+		# Save Confirmation Dialog -----------------------------------------------------------------------------------------
+		RWT.Dialog $Application TITLE "Confirmation" BUTTONS RWT.$none OBJECT $SaveConfirmationDialog;
+		RWT.Panel $SaveConfirmationDialog FRAME RWT.$true MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $SaveConfirmationPanel;
+
+		RWT.Picture $SaveConfirmationPanel BITMAPNAME "integration" TRANSPARENT RWT.$true;
+		RWT.Label $SaveConfirmationPanel VDISTANCE 20 HDISTANCE 100 
+			TEXT  "Order Reference numbers are same as pervious,\n" 
+				& "Do wish to increment reference numbers before saving?";   
+
+		RWT.Button $SaveConfirmationPanel TEXT "Yes"	VDISTANCE 90 WIDTH 60 HDISTANCE 160 OBJECT $SaveConfirmationYes;
+		RWT.Button $SaveConfirmationPanel TEXT "No"		VDISTANCE 90 WIDTH 60 HDISTANCE 230 OBJECT $SaveConfirmationNo;
+		RWT.Button $SaveConfirmationPanel TEXT "Cancel" VDISTANCE 90 WIDTH 60 HDISTANCE 300 OBJECT $SaveConfirmationCancel;
+
+
+		# About Window -----------------------------------------------------------------------------------------------------
+		RWT.Dialog $Application TITLE "CC Order System" BUTTONS RWT.$ok OKTEXT "       OK       " OBJECT $aboutWindow;
+		RWT.Panel $aboutWindow FRAME RWT.$false OBJECT $aboutWindowPanel MARGINWIDTH 5  MARGINHEIGHT 5;
+
+		RWT.Label $aboutWindowPanel VDISTANCE 50 HDISTANCE 245 TEXT "Version " & $gVersion;
+
+		RWT.Label $aboutWindowPanel VDISTANCE 70 HDISTANCE 219 TEXT "Author Mohib Miah";
+		RWT.Label $aboutWindowPanel VDISTANCE 90 HDISTANCE 190 TEXT "mohib.miah@axway.com";
+
+		RWT.Label $aboutWindowPanel VDISTANCE 110 HDISTANCE 90 TEXT "Copyright © 2010 NA/UK Competency Center";
+		RWT.Label $aboutWindowPanel VDISTANCE 130 HDISTANCE 175 TEXT "Bulid Date " & DATE($gBuildDate, "%Y%m%d %H:%M");   
+		
+		RWT.Picture $aboutWindowPanel BITMAPNAME "ccOrderSysAbout2" TRANSPARENT RWT.$true OBJECT $PictureAboutWindow;   
+
+
+		# Abstract Confirmation Dialog -----------------------------------------------------------------------------------------
+		RWT.Dialog $Application TITLE "Confirmation" BUTTONS RWT.$none OBJECT $AbstractConfirmationDialog;
+		RWT.Panel $AbstractConfirmationDialog FRAME RWT.$true MARGINWIDTH 10 MARGINHEIGHT 10 OBJECT $AbstractConfirmationPanel;
+
+		RWT.Picture $AbstractConfirmationPanel BITMAPNAME "integration_blue" TRANSPARENT RWT.$true;
+		RWT.Label $AbstractConfirmationPanel VDISTANCE 20 HDISTANCE 100 
+			TEXT  "Save changes?" OBJECT $AbstractConfirmationLabel;   
+
+		RWT.Button $AbstractConfirmationPanel TEXT "Yes"	VDISTANCE 90 WIDTH 60 HDISTANCE 160 OBJECT $AbstractConfirmationYes;
+		RWT.Button $AbstractConfirmationPanel TEXT "No"		VDISTANCE 90 WIDTH 60 HDISTANCE 230 OBJECT $AbstractConfirmationNo;
+		RWT.Button $AbstractConfirmationPanel TEXT "Cancel" VDISTANCE 90 WIDTH 60 HDISTANCE 300 OBJECT $AbstractConfirmationCancel;
+
+		
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	EventConstruct
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT EventConstruct
+{
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		# Application Events
+		RWT.CloseEvent $Application					HANDLER SIDENT(ExitAppl);
+		# Menu
+		RWT.SelectEvent $FileMenuNew				HANDLER SIDENT(NewCreateOrder);
+		RWT.SelectEvent $FileMenuSave				HANDLER SIDENT(SaveFile);
+		RWT.SelectEvent $FileMenuExit				HANDLER SIDENT(ExitAppl);
+
+		RWT.SelectEvent $EditMenuAddLine			HANDLER SIDENT(AddLineButtonSelected);
+		RWT.SelectEvent $EditMenuEditLine			HANDLER SIDENT(ColumnListDoubleSelectEvent);
+		RWT.SelectEvent $EditMenuGenerate			HANDLER SIDENT(GenerateOrderOnScreen);
+		RWT.SelectEvent	$EditMenuDeleteLine			HANDLER SIDENT(DeleteLineSelectedLine);
+		RWT.SelectEvent $EditMenuPreferences		HANDLER SIDENT(PopUpPreferencesWindow);
+
+		RWT.SelectEvent $ViewMenuResponseWindow		HANDLER SIDENT(PopUpResponseWindow);
+
+		RWT.SelectEvent $HelpMenuAbout				HANDLER SIDENT(PopUpAboutWindow);
+
+		# Button Events
+		RWT.SelectEvent $ExitButton					HANDLER SIDENT(ExitAppl);
+	    RWT.SelectEvent $AddLineButton				HANDLER SIDENT(AddLineButtonSelected);
+	    RWT.SelectEvent $NewButton					HANDLER SIDENT(NewCreateOrder);
+		RWT.SelectEvent $GenerateButton				HANDLER SIDENT(GenerateOrderOnScreen);
+		RWT.SelectEvent $LineDialogGenerateButton	HANDLER SIDENT(GenerateOrderOnLineDialog);
+		RWT.SelectEvent $SaveButton					HANDLER SIDENT(SaveFile);
+
+
+		# ColumnList Events
+		RWT.DoubleSelectEvent	$ColumnList			HANDLER SIDENT(ColumnListDoubleSelectEvent);
+		RWT.SelectEvent			$PopUpMenuEdit		HANDLER SIDENT(ColumnListDoubleSelectEvent);
+		RWT.SelectEvent			$PopUpMenuAdd		HANDLER SIDENT(AddLineButtonSelected);
+		RWT.SelectEvent			$PopUpMenuDelete	HANDLER SIDENT(DeleteLineSelectedLine);
+		RWT.SelectEvent			$PopUpMenuGenerate  HANDLER SIDENT(GenerateOrderOnScreen);
+
+		# Dialog Add line Events
+		RWT.CloseEvent			$LineDialog			HANDLER SIDENT(PopDownDialog);
+		RWT.CancelEvent			$LineDialog			HANDLER SIDENT(PopDownDialog);
+		RWT.OkEvent				$LineDialog			HANDLER SIDENT(AddLineToColumnList);
+
+		# Save Confirmation Dialog
+		RWT.CloseEvent		$SaveConfirmationDialog		HANDLER SIDENT(PopDownDialog);
+		RWT.SelectEvent		$SaveConfirmationCancel		HANDLER SIDENT(SaveConfirmationCancelEvent);
+		RWT.SelectEvent		$SaveConfirmationNo			HANDLER SIDENT(SaveConfirmationNoEvent);
+		RWT.SelectEvent		$SaveConfirmationYes		HANDLER SIDENT(SaveConfirmationYesEvent);	
+
+
+		# Preferences Window
+		RWT.CloseEvent		$PreferencesWindow				HANDLER SIDENT(PopDownDialog);
+		RWT.CancelEvent		$PreferencesWindow				HANDLER SIDENT(PopDownDialog);
+		RWT.OkEvent			$PreferencesWindow				HANDLER SIDENT(SavePreferences);
+		RWT.SelectEvent		$OutputDirectoryBrowseButton	HANDLER SIDENT(OutputDirectoryBrowse);
+		RWT.SelectEvent		$AsnOutputDirBrowseButton		HANDLER SIDENT(OutputDirectoryBrowse);
+		RWT.SelectEvent		$InvoiceOutputDirBrowseButton	HANDLER SIDENT(OutputDirectoryBrowse);
+		RWT.SelectEvent		$PaymentOutputDirBrowseButton	HANDLER SIDENT(OutputDirectoryBrowse);
+
+		# About Window
+		RWT.CloseEvent		$aboutWindow				HANDLER SIDENT(PopDownDialog);
+		RWT.OkEvent			$aboutWindow				HANDLER SIDENT(PopDownDialog);
+
+		# Timer
+		#RWT.TimerEvent		$rwtTimer					HANDLER SIDENT(ccOrderSysEDI.Create2ndOutputFile);
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	DisplayApplication
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT DisplayApplication
+{
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+		
+		StatusMessage "" TYPE "NONE";
+		# Buttons
+		RWT.InSensitive $GenerateButton;
+		RWT.InSensitive $AddLineButton;	
+		RWT.InSensitive $SaveButton;
+		# Menus
+		RWT.InSensitive $FileMenuSave;
+		RWT.InSensitive $EditMenuAddLine;    
+		RWT.InSensitive $EditMenuEditLine;   
+		RWT.InSensitive $EditMenuDeleteLine;                     
+		RWT.InSensitive $EditMenuGenerate;
+		RWT.InSensitive $ViewMenuResponseWindow;
+		# Popup menu   
+		RWT.InSensitive $PopUpMenuEdit;    
+		RWT.InSensitive $PopUpMenuAdd;        
+		RWT.InSensitive $PopUpMenuGenerate;
+		RWT.InSensitive $PopUpMenuDelete;  
+
+		RWT.Display $Application;
+		RWT.MainLoop;
+	}
+	CATCH $exception
+	WHEN RWT.$MainLoopExitExceptionName
+	{
+		TraceDebug "Application exit";
+	}
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*--------------------------------------------------------------------
+ * MODULE_CLEAN
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_CLEAN
+{
+	
+	RETURN;
+}
+
+} # End Module

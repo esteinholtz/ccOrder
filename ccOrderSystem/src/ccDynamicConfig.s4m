@@ -1,0 +1,297 @@
+/* Message Builder source file
+ *	File: dynamicConfig.s4m
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:			Description:
+ *	----------	-------		-------			------------
+ *	??-??-2007	1.0.0		Mohib Miah      Inital version
+ *
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h"			once;
+include "sysinfo.s4h"		once;
+include "eunique.s4h"		once;
+
+DECLARE MODULE DYNAMIC_CONFIG {
+
+DECLARE PUBLIC $UniqueType_IntConNum = "IntConNum"		CONSTANT STRING;
+DECLARE PUBLIC $UniqueType_GrpConNum = "GrpConNum"		CONSTANT STRING;
+DECLARE PUBLIC $UniqueType_DocConNum = "DocConNum"		CONSTANT STRING;
+DECLARE PUBLIC $UniqueType_PoNumber  = "PoNumber"		CONSTANT STRING;
+DECLARE PUBLIC $UniqueType_FileName  = "FileName"		CONSTANT STRING;
+DECLARE PUBLIC $UniqueType_InvNum	 = "InvNum"			CONSTANT STRING;
+DECLARE PUBLIC $UniqueType_PayNum	 = "PayNum"			CONSTANT STRING;
+
+
+DECLARE PUBLIC RECORD Configuration {
+	DECLARE PUBLIC FIELD $OutputPath		STRING;
+	DECLARE PUBLIC FIELD $templatePathPO	STRING;
+	DECLARE PUBLIC FIELD $templatePathASN	STRING;
+	DECLARE PUBLIC FIELD $templatePathINV	STRING;
+	DECLARE PUBLIC FIELD $uniqueIdPath		STRING;
+	DECLARE PUBLIC FIELD $debug				INTEGER;
+
+}
+
+DECLARE $TagOutputPath		= "OUTPUTPATH"		CONSTANT STRING;
+DECLARE $TagTemplatePathPO	= "TEMPLATEPATHPO"	CONSTANT STRING;
+DECLARE $TagTemplatePathASN	= "TEMPLATEPATHASN"	CONSTANT STRING;
+DECLARE $TagTemplatePathINV	= "TEMPLATEPATHINV"	CONSTANT STRING;
+DECLARE $TagDebug			= "DEBUG"			CONSTANT STRING;
+DECLARE $TagUniqueIdPath	= "UNIQUEIDPATH"	CONSTANT STRING;
+
+
+DECLARE $mDebug = 0		INTEGER;
+DECLARE $mConfigRec		RECORD Configuration;
+
+/*--------------------------------------------------------------------
+ * Version
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Version() 
+{
+	RETURN SOURCEMODULE() & " Version 1.0.0";
+}
+
+/*--------------------------------------------------------------------
+ * MODULE_INIT
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_INIT 
+{
+
+	RETURN;
+}
+
+/*--------------------------------------------------------------------
+ * SetDebug
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT SetDebug IN $int
+{
+	$mDebug = $int;
+	TraceDebug SOURCEMODULE() & " Started in debug mode";
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	SetUniqueIdPath
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT SetUniqueIdPath IN $path
+{
+	TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+	$mConfigRec.$uniqueIdPath = $path;
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	GetUniqueId
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION GetUniqueId($type PRIMITIVE)
+{
+	DECLARE $fHandle	INTEGER;
+	DECLARE $id[]		STRING;
+	
+
+	TRY
+	{
+	    TRY
+	    {
+			$error = 0;
+	        $fHandle = UNIQUE.FILEOPEN($mConfigRec.$uniqueIdPath);
+	    }
+	    CATCH $exception
+	    WHEN OTHERS
+	    {
+	    	IF $error =  UNIQUE.$Error_FileopenFileOpen 
+			{
+				UNIQUE.FILECREATE $mConfigRec.$UniqueIdPath;
+				
+				$fHandle = UNIQUE.FILEOPEN($mConfigRec.$UniqueIdPath);
+
+				UNIQUE.ADD $fHandle TYPE $UniqueType_IntConNum LENGTH 9 INITIAL "100000000";
+				UNIQUE.ADD $fHandle TYPE $UniqueType_GrpConNum LENGTH 9 INITIAL "200000000";
+				UNIQUE.ADD $fHandle TYPE $UniqueType_DocConNum LENGTH 9 INITIAL "300000000";
+				UNIQUE.ADD $fHandle TYPE $UniqueType_PoNumber  LENGTH 9 INITIAL "400000000";
+				UNIQUE.ADD $fHandle TYPE $UniqueType_InvNum	   LENGTH 9 INITIAL "500000000";
+				UNIQUE.ADD $fHandle TYPE $UniqueType_PayNum	   LENGTH 9 INITIAL "600000000";
+				UNIQUE.ADD $fHandle TYPE $UniqueType_FileName  LENGTH 10 BASE 62;
+
+			}
+	    }
+
+		$id = UNIQUE.GETID($fHandle, $type);
+
+		UNIQUE.FILECLOSE $fHandle;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+
+	RETURN $id[1];
+}
+
+
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	Parse
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT Parse IN $configFile DATA OUT $configRec RECORD CONFIGURATION 
+{
+	DECLARE $line		STRING;
+	DECLARE $firstChar	STRING;
+	DECLARE $tag		STRING;
+
+	TRY
+	{
+	    OPEN FILE INPUT $configFile;
+
+		READ $line UNTIL "\n";
+
+		WHILE $error <> $error_ReadEndOfFile
+		{
+			# Skips the comments lines in the config file.
+			$FirstChar = MID($line, 1, 1);
+			WHILE $FirstChar = "#"
+			{
+				READ $line UNTIL "\n";
+				$FirstChar = MID($line, 1, 1);
+			}
+
+
+			$tag = MID($line, 1, STRFORWARD($line, "=")-1);
+			TraceDebug "Tag(" & $tag & ")";
+
+			CASE SL_STRING.ToUpper($tag)
+			WHEN $TagOutputPath
+			{
+				$configRec.$OutputPath = getValue($line);
+				TraceDebug "$configRec.$OutputPath(" & $configRec.$OutputPath & ")";
+			}
+			WHEN $TagTemplatePathPO
+			{
+				$configRec.$TemplatePathPO = getValue($line);
+				TraceDebug "$configRec.$TemplatePathPO(" & $configRec.$TemplatePathPO & ")";
+			}
+			WHEN $TagTemplatePathASN
+			{
+				$configRec.$TemplatePathASN = getValue($line);
+				TraceDebug "$configRec.$TemplatePathASN(" & $configRec.$TemplatePathASN & ")";
+			}
+			WHEN $TagTemplatePathINV
+			{
+				$configRec.$TemplatePathINV = getValue($line);
+				TraceDebug "$configRec.$TemplatePathINV(" & $configRec.$TemplatePathINV & ")";
+			}
+			WHEN $TagDebug
+			{
+				IF SL_STRING.ToUpper(getValue($line)) = "TRUE"
+				{
+					$configRec.$Debug = 1;
+				}
+				ELSE
+				{
+					$configRec.$Debug = 0;
+				}
+				TraceDebug "$configRec.$Debug(" & $configRec.$Debug & ")";
+			}
+			WHEN $TagUniqueIdPath
+			{
+				$configRec.$UniqueIdPath = getValue($line);
+				TraceDebug "$configRec.$UniqueIdPath(" & $configRec.$UniqueIdPath & ")";
+			}
+			WHEN ""
+			{
+				#TraceDebug "empty line";
+			}
+			WHEN OTHERS
+			{
+				LOG "Unknown Tag found!" TYPE "ERROR";
+			}
+
+			NOLOG {READ $line UNTIL "\n";}
+		} # Main While
+
+		CLOSE INPUT;
+
+		$mConfigRec = $configRec;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Error in Program: Exception=" & $exception TYPE "ERROR";
+	}
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE FUNCTION getValue($line) PRIMITIVE
+{
+	RETURN TRIMRIGHT(MID($line, STRFORWARD($line, "=")+1, STRLEN($line)), "\r");
+}
+
+/*--------------------------------------------------------------------
+ * TraceDebug
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT TraceDebug IN $txt
+{
+	IF $mDebug
+	{
+		LOG $txt TYPE "DEBUG";
+	}
+	RETURN;
+}
+
+DECLARE PUBLIC FUNCTION Mid($str,$n,$m)
+{
+    declare $i integer;
+    declare $num integer;
+    declare $ntmp integer;
+    declare $mtmp integer;
+    declare $retstr string;
+    
+    $retstr = "";
+    $num = STRLEN($str);
+    $ntmp = $n;
+    $mtmp = $m;
+    
+    if $ntmp<1 {$ntmp=1;}
+    if $mtmp>$num {$mtmp=$num;}
+    if $ntmp>$mtmp {return $retstr;}
+
+    $retstr = STRMID($str,$ntmp,$mtmp);
+
+    return $retstr;
+} 
+/*--------------------------------------------------------------------
+ * MODULE_CLEAN
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_CLEAN
+{
+	
+	RETURN;
+}
+
+} # End Module

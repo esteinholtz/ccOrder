@@ -1,0 +1,360 @@
+/* Message Builder source file
+ *	File: ccOrderSysInhouse.s4m
+ *
+ *	@INTRO 
+	@END
+ *
+ *	Date:		Version:	Author:			Description:
+ *	----------	-------		-------			------------
+ *	??-??-2008	1.0.0						Inital version
+ *
+ *
+ */
+
+/* standard MB includes */
+
+include "error.s4h"				once;
+include "sysinfo.s4h"			once;
+include "ccOrderSys.s4h"		once;
+
+DECLARE MODULE ccOrderSysInhouse  {
+
+
+/*--------------------------------------------------------------------
+ * Version
+ *--------------------------------------------------------------------*/
+DECLARE PUBLIC FUNCTION Version() 
+{
+	RETURN SOURCEMODULE() & " Version 1.0.0";
+}
+
+/*--------------------------------------------------------------------
+ * MODULE_INIT
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_INIT 
+{
+
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateInhAsn
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT CreateInhAsn	IN $OrderInfo	RECORD OrderInfo 
+								ASN		IN $Asn			RECORD ASN
+								CONFIG	IN $Preferences RECORD PREFERENCES	
+{
+	DECLARE $CurrentDate	STRING;
+	DECLARE $CurrentTime	STRING;
+	DECLARE $filename		STRING;
+	DECLARE $sum			FLOAT;
+	DECLARE $sender			STRING;
+	DECLARE $receiver		STRING;
+
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		$CurrentDate = DATE(CURRENTDATE(), "%Y%m%d");
+		$CurrentTime = DATE(CURRENTDATE(), "%H%M");
+
+		$fileName = "asn_" & DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_FileName);
+		$fileName = $Asn.$outputPath & SL_FILEIO.DirectorySeparator() & $fileName & ".inh";
+
+		IF $Preferences.$CreateEdifact
+		{
+			# Sender & Receiver switched, as inhouse file goes back to customer.
+			$sender = $Preferences.$Edifact.$ReceiverId;
+			$receiver = $Preferences.$Edifact.$SenderId;
+		}
+		ELSE IF $Preferences.$CreateX12
+		{	
+			# Sender & Receiver switched, as inhouse file goes back to customer.
+			$sender = $OrderInfo.$Receiver;
+			$receiver = $OrderInfo.$Sender;
+		}
+		ELSE 
+		{
+			StatusMessage "Output format not set!" TYPE "ERROR";
+		}
+
+		OPEN FILE OUTPUT $fileName;
+		
+		PRINT "Header#ASN"			& "#" &
+			"08"					& "#" &
+			$sender					& "#" &
+			"12"					& "#" & 
+			$receiver				& "#" &
+			$CurrentDate			& "#" & 
+			$CurrentTime			& "#" & 
+			$Asn.$ControlNumber		& "#" &	
+			$Asn.$FunctionlGrpNum	& "#" &
+			$Asn.$TransactionNum	& "#" &
+			$Asn.$PONumber			& "#\n";
+
+		PRINT "ShipTo#BY#TARGET DC#92#0551#\n";
+		
+		PRINT "ShipDate"															& "#" &
+			"037"																	& "#" & 
+			ccOrderSysEDI.DateConvert($Asn.$FirstShipDate, "%Y-%b-%d","%Y%m%d")		& "#" &
+			"038"																	& "#" & 
+			ccOrderSysEDI.DateConvert($Asn.$LastShipDate, "%Y-%b-%d", "%Y%m%d")	& "#\n";
+			 
+
+		FOR $i = 1 TO ARRAYSIZE($Asn.$line) 
+		{
+			PRINT "Line"						& "#" &
+				$i								& "#" &
+				$Asn.$line[$i].$CatelogNumber	& "#" &
+				$Asn.$line[$i].$Description		& "#" &
+				$Asn.$line[$i].$Quantity		& "#" &
+				$Asn.$line[$i].$Measure			& "#" &
+				$Asn.$line[$i].$Price			& "#" &
+				$Asn.$line[$i].$Total			& "#\n";
+
+				$sum = $sum + $Asn.$line[$i].$Total;
+		}
+
+		PRINT "TDS"					& "#" &
+			ARRAYSIZE($Asn.$line)	& "#" &
+			FORMAT("%0.2f", $sum)	& "#\n";
+		
+		CLOSE OUTPUT;
+	}		       
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Failed to write inhouse ASN message: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+/*---------------------------------------------------------------------------------------
+@NAME	CreateInhInvoice
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE PUBLIC STATEMENT CreateInhInvoice	IN $OrderInfo	RECORD OrderInfo 
+								INVOICE		IN $Invoice		RECORD Invoice
+								ASN			IN $Asn			RECORD ASN
+								CONFIG		IN $Preferences RECORD PREFERENCES
+{
+	DECLARE $inv			RECORD InhouseInvoice;
+	DECLARE $CurrentDate	STRING;
+	DECLARE $CurrentTime	STRING;
+	DECLARE $TotalQty		INTEGER;
+	DECLARE $sender			STRING;
+	DECLARE $receiver		STRING;
+
+	TRY
+	{
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		$CurrentDate = DATE(CURRENTDATE(), "%Y%m%d");
+		$CurrentTime = DATE(CURRENTDATE(), "%H%M");
+
+		IF $Preferences.$CreateEdifact
+		{
+			# Sender & Receiver switched, as inhouse file goes back to customer.
+			$sender = $Preferences.$Edifact.$ReceiverId;
+			$receiver = $Preferences.$Edifact.$SenderId;
+		}
+		ELSE IF $Preferences.$CreateX12
+		{	
+			# Sender & Receiver switched, as inhouse file goes back to customer.
+			$sender = $OrderInfo.$Receiver;
+			$receiver = $OrderInfo.$Sender;
+		}
+		ELSE 
+		{
+			StatusMessage "Output format not set!" TYPE "ERROR";
+		}
+
+		$inv.$Trans.$ISA05_Qual		= "08";
+		$inv.$Trans.$ISA_06_Sender	= $sender; 
+		$inv.$Trans.$ISA_07_Qual	= "12";
+		$inv.$Trans.$ISA_08_Recieve = $receiver;
+		$inv.$Trans.$ISA_09_Date	= $CurrentDate;
+		$inv.$Trans.$ISA_10_Time	= $CurrentTime;
+		$inv.$Trans.$ISA_11			= "U";
+		$inv.$Trans.$ISA_12_Version = "00401";
+		$inv.$Trans.$ISA_13_Cntl_ID = $OrderInfo.$ControlNumber;  # <- Invoice control number ???
+		$inv.$Trans.$ISA_14			= "0";
+		$inv.$Trans.$GS_01_Sender	= $OrderInfo.$Receiver;	
+		$inv.$Trans.$GS_02_Recieve	= $OrderInfo.$Sender;
+		$inv.$Trans.$GS_03_Date		= $CurrentDate;
+		$inv.$Trans.$GS_04_Time		= $CurrentTime;
+		$inv.$Trans.$GS_05_ID		= $OrderInfo.$FunctionlGrpNumber;
+		$inv.$Trans.$BIG_01_Date	= $CurrentDate;
+		$inv.$Trans.$BIG_02_Invoice = $Invoice.$InvNumber;
+		$inv.$Trans.$BIG_04_PO		= $OrderInfo.$PONumber;
+		$inv.$Trans.$REF_01_Qual	= "IA";
+		$inv.$Trans.$REF_02_Code	= "3680401";
+
+		$inv.$ShipTo.$N1_01_Qual	= "BY";
+		$inv.$ShipTo.$N1_02_Name	= "TARGET DC";#                     0551"
+		$inv.$ShipTo.$N1_03_Qual	= "92";
+		$inv.$ShipTo.$N1_04_Code	= "0551";
+
+		$inv.$PayTerm.$ITD_01		= "";
+		$inv.$PayTerm.$ITD_02		= "";
+		$inv.$PayTerm.$ITD_06_Date  = "";
+			
+		$inv.$ShipDate.$DTM_01_Qual = "037";
+		$inv.$ShipDate.$DTM_02_Date = $Asn.$FirstShipDate;
+
+		# #DF#OR#AURORA      IL#
+		$inv.$PayOption.$FOB_01		= "DF";
+		$inv.$PayOption.$FOB_02		= "OR";
+		$inv.$PayOption.$FOB_03		= "AURORA      IL";
+
+		FOR $i = 1 TO ARRAYSIZE($Invoice.$line) 
+		{
+			$inv.$Line[$i].$IT1_01_Line	= $i;	
+			$inv.$Line[$i].$IT1_02_Qty	= $Invoice.$line[$i].$Quantity;
+			$inv.$Line[$i].$IT1_03_UOM	= $Invoice.$line[$i].$Measure;
+			$inv.$Line[$i].$IT1_04_Price = $Invoice.$line[$i].$Price;
+			$inv.$Line[$i].$IT1_06_Qual1 = "CB";
+			$inv.$Line[$i].$IT1_06_Code1 = $Invoice.$line[$i].$CatelogNumber;
+			$inv.$Line[$i].$IT1_06_Qual2 = "";
+			$inv.$Line[$i].$IT1_06_Code2 = "";
+			$inv.$Line[$i].$IT1_06_Qual3 = "";
+			$inv.$Line[$i].$IT1_06_Code3 = "";
+
+			$TotalQty = $TotalQty + $Invoice.$line[$i].$Quantity;
+		}
+				
+		$inv.$TDS.$TDS_02_Total		= $Invoice.$InvTotal;
+		$inv.$TDS.$CAD_08_ASN		= "";
+		$inv.$TDS.$ISI_01_TotalQTY	= $TotalQty;
+		$inv.$TDS.$ISI_03_Weight	= "";
+		$inv.$TDS.$CTT_01			= "";
+		
+		WriteInhInvoiceToFile $inv PATH $Invoice.$outputPath;
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " : Faild to create invoice file: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+/*---------------------------------------------------------------------------------------
+@NAME	
+@SYNTAX
+@DESC		
+@END   
+ *---------------------------------------------------------------------------------------*/
+DECLARE STATEMENT WriteInhInvoiceToFile IN $inv		RECORD InhouseInvoice
+								PATH	IN $path	PRIMITIVE 
+{
+	DECLARE $filename	STRING;
+
+	TRY
+	{	
+		TraceDebug SOURCEMODULE() & "." & SOURCEPROCEDURE();
+
+		$fileName = "inv_" & DYNAMIC_CONFIG.GetUniqueId(DYNAMIC_CONFIG.$UniqueType_FileName);
+		$fileName = $path & SL_FILEIO.DirectorySeparator() & $fileName & ".inh";
+
+		OPEN FILE OUTPUT $fileName;
+		
+		PRINT "Header#INVOICE"			& "#" &
+			$inv.$Trans.$ISA05_Qual		& "#" &
+			$inv.$Trans.$ISA_06_Sender	& "#" &
+			$inv.$Trans.$ISA_07_Qual	& "#" &
+			$inv.$Trans.$ISA_08_Recieve & "#" &
+			$inv.$Trans.$ISA_09_Date	& "#" &
+			$inv.$Trans.$ISA_10_Time	& "#" &
+			$inv.$Trans.$ISA_11			& "#" &
+			$inv.$Trans.$ISA_12_Version & "#" &
+			$inv.$Trans.$ISA_13_Cntl_ID & "#" &
+			$inv.$Trans.$ISA_14			& "#" &                       
+			$inv.$Trans.$GS_01_Sender	& "#" &
+			$inv.$Trans.$GS_02_Recieve	& "#" &
+			$inv.$Trans.$GS_03_Date		& "#" &
+			$inv.$Trans.$GS_04_Time		& "#" &
+			$inv.$Trans.$GS_05_ID		& "#" &
+			$inv.$Trans.$BIG_01_Date	& "#" &
+			$inv.$Trans.$BIG_02_Invoice & "#" &
+			$inv.$Trans.$BIG_04_PO		& "#" &
+			$inv.$Trans.$REF_01_Qual	& "#" &
+			$inv.$Trans.$REF_02_Code	& "#\n";
+
+		PRINT "ShipTo#" &
+			$inv.$ShipTo.$N1_01_Qual	& "#" &
+			$inv.$ShipTo.$N1_02_Name	& "#" &
+			$inv.$ShipTo.$N1_03_Qual	& "#" &
+			$inv.$ShipTo.$N1_04_Code	& "#\n";
+
+		PRINT "PayTerm#" &
+			$inv.$PayTerm.$ITD_01		& "#" & 			
+			$inv.$PayTerm.$ITD_02		& "#" & 
+			$inv.$PayTerm.$ITD_06_Date	& "#\n";
+
+		PRINT "ShipDate#" & 
+			$inv.$ShipDate.$DTM_01_Qual & "#" & 
+			$inv.$ShipDate.$DTM_02_Date	& "#\n";
+
+		PRINT "PayOption#" &
+			$inv.$PayOption.$FOB_01		& "#" & 
+			$inv.$PayOption.$FOB_02		& "#" & 
+			$inv.$PayOption.$FOB_03		& "#\n";
+
+		FOR $i = 1 TO ARRAYSIZE($inv.$Line) 
+		{
+			PRINT "Line#" &
+				$inv.$Line[$i].$IT1_01_Line		& "#" & 	 
+				$inv.$Line[$i].$IT1_02_Qty		& "#" & 
+				$inv.$Line[$i].$IT1_03_UOM		& "#" & 
+				$inv.$Line[$i].$IT1_04_Price	& "#" & 
+				$inv.$Line[$i].$IT1_06_Qual1	& "#" & 
+				$inv.$Line[$i].$IT1_06_Code1	& "#" & 
+				$inv.$Line[$i].$IT1_06_Qual2	& "#" & 
+				$inv.$Line[$i].$IT1_06_Code2	& "#" &
+				$inv.$Line[$i].$IT1_06_Qual3	& "#" &
+				$inv.$Line[$i].$IT1_06_Code3	& "#\n";
+		}
+		
+		PRINT "TDS#" &
+			$inv.$TDS.$TDS_02_Total		& "#" & 
+			$inv.$TDS.$CAD_08_ASN		& "#" & 
+			$inv.$TDS.$ISI_01_TotalQTY	& "#" & 
+			$inv.$TDS.$ISI_03_Weight	& "#" & 
+			$inv.$TDS.$CTT_01			& "#\n";
+
+		CLOSE OUTPUT;
+
+		TraceDebug "Inhouse Invoice file created!";
+
+	}
+	CATCH $exception
+	WHEN OTHERS
+	{
+		LOG SOURCEMODULE() & "." & SOURCEPROCEDURE() & " Failed to write inhouse Invoice message: Exception=" 
+			& $exception TYPE "ERROR";
+	}
+	RETURN;
+}
+
+
+
+/*--------------------------------------------------------------------
+ * MODULE_CLEAN
+ *--------------------------------------------------------------------*/
+DECLARE STATEMENT MODULE_CLEAN
+{
+	
+	RETURN;
+}
+
+} # End Module
