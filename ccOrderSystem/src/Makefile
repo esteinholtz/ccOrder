@@ -1,4 +1,4 @@
-git INTEGRATOR_PATH = /opt/axway/b2bi/Integrator
+INTEGRATOR_PATH = /opt/axway/b2bi/Integrator
 
 ccOrderSystem.x4: ccOrderSystem.s4
 	$(INTEGRATOR_PATH)/bin/c4edi \
